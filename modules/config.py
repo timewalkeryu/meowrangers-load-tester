@@ -11,8 +11,9 @@ BASE_URL = "https://meowrangers-dev.layerlabgames.com"  # 개발 환경 URL
 # 테스트 설정
 SERVER_ALIAS = "SEOUL-001"
 PLATFORM_TYPE = "DEVICE"
-DEFAULT_CONCURRENT_USERS = 20  # 기본 동시 사용자 수 및 최대 동시 인증 프로세스 수
-DEFAULT_TEST_SETS = 5          # 기본 API 테스트 세트 수
+APP_VERSION = "1.0.0"  # 앱 버전 설정
+DEFAULT_CONCURRENT_USERS = 5  # 기본 동시 사용자 수 및 최대 동시 인증 프로세스 수
+DEFAULT_TEST_SETS = 2          # 기본 API 테스트 세트 수
 
 # 디렉터리 설정
 LOG_DIR = "log"

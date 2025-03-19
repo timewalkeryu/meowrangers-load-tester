@@ -70,44 +70,60 @@ async def run_api_test_set(session, index, token, set_id):
     # 세트 시작 시간 기록
     set_start_time = time.time()
 
-    # 1. SetUserData 호출
+    # 1. CheckAppVersion 호출 (추가됨)
+    check_app_result = await api.check_app_version(session, index, token)
+    if not check_app_result:
+        print(f"사용자 {index} - 세트 {set_id}: CheckAppVersion 실패")
+
+    # 2. GetTimestamp 호출 (추가됨)
+    timestamp_result = await api.get_timestamp(session, index, token)
+    if not timestamp_result:
+        print(f"사용자 {index} - 세트 {set_id}: GetTimestamp 실패")
+
+    # 3. SetUserData 호출
     set_data_result = await api.set_user_data(session, index, token)
     if not set_data_result:
         print(f"사용자 {index} - 세트 {set_id}: SetUserData 실패로 테스트 중단")
         return False
 
-    # 2. GetUserData 호출
+    # 4. GetUserData 호출
     get_data_result = await api.get_user_data(session, index, token)
     if not get_data_result:
         print(f"사용자 {index} - 세트 {set_id}: GetUserData 실패")
 
-    # 3. GetAllMails 호출
+    # 5. GetAllMails 호출
     mail_result = await api.get_all_mails(session, index, token)
     if not mail_result:
         print(f"사용자 {index} - 세트 {set_id}: GetAllMails 실패")
 
-    # 4. GetSeasonPassInfo 호출
+    # 6. GetUnclaimedMailCount 호출 (추가됨)
+    mail_count_result = await api.get_unclaimed_mail_count(session, index, token)
+    if not mail_count_result:
+        print(f"사용자 {index} - 세트 {set_id}: GetUnclaimedMailCount 실패")
+
+    # 7. GetSeasonPassInfo 호출
     season_result = await api.get_season_pass_info(session, index, token)
     if not season_result:
         print(f"사용자 {index} - 세트 {set_id}: GetSeasonPassInfo 실패")
 
-    # 5. GetEventInfo 호출
+    # 8. GetEventInfo 호출
     event_result = await api.get_event_info(session, index, token)
     if not event_result:
         print(f"사용자 {index} - 세트 {set_id}: GetEventInfo 실패")
 
-    # 6. GetAnnouncement 호출
+    # 9. GetAnnouncement 호출
     announcement_result = await api.get_announcement(session, index, token)
     if not announcement_result:
         print(f"사용자 {index} - 세트 {set_id}: GetAnnouncement 실패")
 
-    # 7. GetRollingAnnouncement 호출
+    # 10. GetRollingAnnouncement 호출
     rolling_result = await api.get_rolling_announcement(session, index, token)
     if not rolling_result:
         print(f"사용자 {index} - 세트 {set_id}: GetRollingAnnouncement 실패")
 
     # 각 테스트 사이에 약간의 지연 추가 (선택 사항)
-    await asyncio.sleep(random.uniform(0.1, 0.5))
+    # 지연 시간을 줄이려면 이 값을 0.01~0.05 정도로 변경할 수 있습니다
+    await asyncio.sleep(random.uniform(0.01, 0.05))  # 더 짧은 지연으로 변경
 
     # 세트 종료 시간 기록 및 소요 시간 계산
     set_elapsed_time = time.time() - set_start_time

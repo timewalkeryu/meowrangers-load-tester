@@ -189,6 +189,48 @@ async def connect_provider(session, index, token):
 
     return new_token
 
+async def check_app_version(session, index, token):
+    """앱 버전 확인 함수"""
+    url = f"{config.BASE_URL}/api/app-versions?app_version={config.APP_VERSION}&platform={config.PLATFORM_TYPE}"
+
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+    }
+
+    result = await call_api(
+        session=session,
+        url=url,
+        method="GET",
+        headers=headers,
+        api_name="CheckAppVersion",
+        index=index
+    )
+
+    return result is not None
+
+async def get_timestamp(session, index, token):
+    """서버 타임스탬프 조회 함수"""
+    url = f"{config.BASE_URL}/api/timestamp"
+
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+    }
+
+    result = await call_api(
+        session=session,
+        url=url,
+        method="GET",
+        headers=headers,
+        api_name="GetTimestamp",
+        index=index
+    )
+
+    return result is not None
+
 async def set_user_data(session, index, token):
     """사용자 데이터 설정 함수"""
     url = f"{config.BASE_URL}/api/user-data"
@@ -259,6 +301,27 @@ async def get_all_mails(session, index, token):
         method="GET",
         headers=headers,
         api_name="GetAllMails",
+        index=index
+    )
+
+    return result is not None
+
+async def get_unclaimed_mail_count(session, index, token):
+    """읽지 않은 메일 수 조회 함수"""
+    url = f"{config.BASE_URL}/api/received-mail-count"
+
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+    }
+
+    result = await call_api(
+        session=session,
+        url=url,
+        method="GET",
+        headers=headers,
+        api_name="GetUnclaimedMailCount",
         index=index
     )
 

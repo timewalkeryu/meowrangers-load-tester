@@ -28,12 +28,12 @@ def print_set_execution_statistics():
 
     print("\n" + "-" * 50)
 
-def print_api_statistics(api_name, times):
+def print_api_statistics(api_name, times, index):
     """특정 API에 대한 통계 계산 및 출력"""
     if not times:
         return
 
-    print(f"\n[{api_name} API 통계 (총 {len(times)}회)]")
+    print(f"\n[{index}. {api_name} API 통계 (총 {len(times)}회)]")
     print(f"  최소 응답 시간: {min(times):.3f}초")
     print(f"  최대 응답 시간: {max(times):.3f}초")
     print(f"  평균 응답 시간: {statistics.mean(times):.3f}초")
@@ -56,9 +56,9 @@ def print_statistics():
     # 세트 실행 시간 통계 출력
     print_set_execution_statistics()
 
-    # 각 API별 통계 출력
-    for api_name, times in sorted(utils.api_times.items()):
-        print_api_statistics(api_name, times)
+    # 각 API별 통계 출력 (넘버링 추가)
+    for idx, (api_name, times) in enumerate(sorted(utils.api_times.items()), 1):
+        print_api_statistics(api_name, times, idx)
 
     # 전체 오류 통계
     total_errors = len(utils.errors)
@@ -102,7 +102,6 @@ def save_results_to_file(concurrent_users, set_count=1, save_summary=True, save_
     if save_summary:
         summary_filename = os.path.join(config.LOG_DIR, f"{now}_load_test_results_{concurrent_users}users_{set_count}sets.txt")
 
-        #with open(summary_filename, "w", encoding="utf-8") as f:
         with open(summary_filename, "w", encoding="utf-8-sig") as f:
             f.write("=" * 50 + "\n")
             f.write(f"부하 테스트 결과\n")
@@ -128,12 +127,12 @@ def save_results_to_file(concurrent_users, set_count=1, save_summary=True, save_
 
                 f.write("\n" + "-" * 50 + "\n")
 
-            # 각 API별 통계 기록
-            for api_name, times in sorted(utils.api_times.items()):
+            # 각 API별 통계 기록 (넘버링 추가)
+            for idx, (api_name, times) in enumerate(sorted(utils.api_times.items()), 1):
                 if not times:
                     continue
 
-                f.write(f"[{api_name} API 통계 (총 {len(times)}회)]\n")
+                f.write(f"[{idx}. {api_name} API 통계 (총 {len(times)}회)]\n")
                 f.write(f"  최소 응답 시간: {min(times):.3f}초\n")
                 f.write(f"  최대 응답 시간: {max(times):.3f}초\n")
                 f.write(f"  평균 응답 시간: {statistics.mean(times):.3f}초\n")
@@ -168,7 +167,6 @@ def save_results_to_file(concurrent_users, set_count=1, save_summary=True, save_
         detailed_filename = os.path.join(config.LOG_DIR, f"{now}_load_test_detailed_{concurrent_users}users_{set_count}sets.json")
 
         try:
-            #with open(detailed_filename, "w", encoding="utf-8") as f:
             with open(detailed_filename, "w", encoding="utf-8-sig") as f:
                 # 로그 메타데이터 추가
                 log_data = {
