@@ -101,7 +101,8 @@ def save_results_to_file(concurrent_users, set_count=1, save_summary=True, save_
     if save_summary:
         summary_filename = os.path.join(config.LOG_DIR, f"{now}_load_test_results_{concurrent_users}users_{set_count}sets.txt")
 
-        with open(summary_filename, "w", encoding="utf-8") as f:
+        #with open(summary_filename, "w", encoding="utf-8") as f:
+        with open(summary_filename, "w", encoding="utf-8-sig") as f:
             f.write("=" * 50 + "\n")
             f.write(f"부하 테스트 결과\n")
             f.write(f"동시 사용자: {concurrent_users}명\n")
@@ -166,7 +167,8 @@ def save_results_to_file(concurrent_users, set_count=1, save_summary=True, save_
         detailed_filename = os.path.join(config.LOG_DIR, f"{now}_load_test_detailed_{concurrent_users}users_{set_count}sets.json")
 
         try:
-            with open(detailed_filename, "w", encoding="utf-8") as f:
+            #with open(detailed_filename, "w", encoding="utf-8") as f:
+            with open(detailed_filename, "w", encoding="utf-8-sig") as f:
                 # 로그 메타데이터 추가
                 log_data = {
                     "metadata": {
