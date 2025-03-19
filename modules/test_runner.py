@@ -163,12 +163,9 @@ async def async_run_with_semaphore(semaphore, coro):
 
 async def run_load_test(concurrent_users, set_count=1):
     """전체 부하 테스트 실행"""
-    # 최대 동시 인증 프로세스 설정 (서버 부하 및 속도 제한 고려)
-    max_concurrent_auth = min(config.MAX_CONCURRENT_AUTH, concurrent_users)
-
     # 1. 제한된 동시성으로 토큰 생성 및 ConnectProvider 호출
     start_time = time.time()
-    tokens = await create_tokens_and_connect_parallel(concurrent_users, max_concurrent_auth)
+    tokens = await create_tokens_and_connect_parallel(concurrent_users, config.DEFAULT_CONCURRENT_USERS)
     auth_time = time.time() - start_time
 
     if not tokens:

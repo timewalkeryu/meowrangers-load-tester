@@ -99,7 +99,7 @@ def save_results_to_file(concurrent_users, set_count=1, save_summary=True, save_
 
     # 요약 통계 파일 저장
     if save_summary:
-        summary_filename = os.path.join(config.LOG_DIR, f"load_test_results_{concurrent_users}users_{set_count}sets_{now}.txt")
+        summary_filename = os.path.join(config.LOG_DIR, f"{now}_load_test_results_{concurrent_users}users_{set_count}sets.txt")
 
         with open(summary_filename, "w", encoding="utf-8") as f:
             f.write("=" * 50 + "\n")
@@ -163,7 +163,7 @@ def save_results_to_file(concurrent_users, set_count=1, save_summary=True, save_
 
     # 상세 로그 (JSON 형식) 저장
     if save_details_json:
-        detailed_filename = os.path.join(config.LOG_DIR, f"load_test_detailed_{concurrent_users}users_{set_count}sets_{now}.json")
+        detailed_filename = os.path.join(config.LOG_DIR, f"{now}_load_test_detailed_{concurrent_users}users_{set_count}sets.json")
 
         try:
             with open(detailed_filename, "w", encoding="utf-8") as f:
