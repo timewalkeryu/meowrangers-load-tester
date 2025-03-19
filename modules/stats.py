@@ -79,6 +79,7 @@ def print_statistics():
         if len(utils.errors) > 10:
             print(f"  ... 그 외 {len(utils.errors) - 10}개 오류")
 
+
 def save_results_to_file(concurrent_users, set_count=1, save_summary=True, save_details_json=False):
     """테스트 결과를 파일로 저장
 
@@ -99,94 +100,117 @@ def save_results_to_file(concurrent_users, set_count=1, save_summary=True, save_
 
     # 요약 통계 파일 저장
     if save_summary:
+        # 1. 날짜가 포함된 파일명
         summary_filename = os.path.join(config.LOG_DIR, f"{now}_load_test_results_{concurrent_users}users_{set_count}sets.txt")
+        # 2. 고정 파일명
+        fixed_summary_filename = os.path.join(config.LOG_DIR, "load_test_results.txt")
 
-        #with open(summary_filename, "w", encoding="utf-8") as f:
+        # 요약 결과 내용 생성
+        summary_content = ""
+        summary_content += "=" * 50 + "\n"
+        summary_content += f"부하 테스트 결과\n"
+        summary_content += f"동시 사용자: {concurrent_users}명\n"
+        summary_content += f"사용자당 API 테스트 세트: {set_count}개\n"
+        summary_content += f"총 테스트 세트: {total_sets}개\n"
+        summary_content += f"테스트 시간: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+        summary_content += f"서버: {config.BASE_URL}\n"
+        summary_content += "=" * 50 + "\n\n"
+
+        # 세트 실행 시간 통계 기록
+        if utils.set_execution_times:
+            summary_content += f"[세트 실행 시간 통계 (총 {len(utils.set_execution_times)} 세트)]\n"
+            summary_content += f"  한 세트당 최소 실행 시간: {min(utils.set_execution_times):.3f}초\n"
+            summary_content += f"  한 세트당 최대 실행 시간: {max(utils.set_execution_times):.3f}초\n"
+            summary_content += f"  한 세트당 평균 실행 시간: {statistics.mean(utils.set_execution_times):.3f}초\n"
+
+            if len(utils.set_execution_times) > 1:
+                summary_content += f"  한 세트당 표준 편차: {statistics.stdev(utils.set_execution_times):.3f}초\n"
+
+            avg_seconds_per_set = statistics.mean(utils.set_execution_times)
+            summary_content += f"  한 세트당 평균 처리 시간: {avg_seconds_per_set:.3f}초/세트\n"
+
+            summary_content += "\n" + "-" * 50 + "\n"
+
+        # 각 API별 통계 기록
+        for api_name, times in sorted(utils.api_times.items()):
+            if not times:
+                continue
+
+            summary_content += f"[{api_name} API 통계 (총 {len(times)}회)]\n"
+            summary_content += f"  최소 응답 시간: {min(times):.3f}초\n"
+            summary_content += f"  최대 응답 시간: {max(times):.3f}초\n"
+            summary_content += f"  평균 응답 시간: {statistics.mean(times):.3f}초\n"
+
+            if len(times) > 1:
+                summary_content += f"  표준 편차: {statistics.stdev(times):.3f}초\n"
+
+            total_time = sum(times)
+            if total_time > 0:
+                requests_per_second = len(times) / total_time
+                summary_content += f"  처리량: {requests_per_second:.2f} 요청/초\n"
+
+            summary_content += "\n"
+
+        # 전체 오류 통계
+        summary_content += f"[오류 통계]\n"
+        summary_content += f"  총 오류 수: {total_errors}\n"
+
+        if total_requests > 0:
+            error_rate = (total_errors / total_requests) * 100
+            summary_content += f"  오류율: {error_rate:.2f}%\n"
+
+        if utils.errors:
+            summary_content += "\n[오류 목록]\n"
+            for error in utils.errors:
+                summary_content += f"  - {error}\n"
+
+        # 1. 날짜가 포함된 파일에 저장
         with open(summary_filename, "w", encoding="utf-8-sig") as f:
-            f.write("=" * 50 + "\n")
-            f.write(f"부하 테스트 결과\n")
-            f.write(f"동시 사용자: {concurrent_users}명\n")
-            f.write(f"사용자당 API 테스트 세트: {set_count}개\n")
-            f.write(f"총 테스트 세트: {total_sets}개\n")
-            f.write(f"테스트 시간: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-            f.write(f"서버: {config.BASE_URL}\n")
-            f.write("=" * 50 + "\n\n")
+            f.write(summary_content)
 
-            # 세트 실행 시간 통계 기록
-            if utils.set_execution_times:
-                f.write(f"[세트 실행 시간 통계 (총 {len(utils.set_execution_times)} 세트)]\n")
-                f.write(f"  한 세트당 최소 실행 시간: {min(utils.set_execution_times):.3f}초\n")
-                f.write(f"  한 세트당 최대 실행 시간: {max(utils.set_execution_times):.3f}초\n")
-                f.write(f"  한 세트당 평균 실행 시간: {statistics.mean(utils.set_execution_times):.3f}초\n")
+        # 2. 고정 파일명에 동일한 내용 저장
+        with open(fixed_summary_filename, "w", encoding="utf-8-sig") as f:
+            f.write(summary_content)
 
-                if len(utils.set_execution_times) > 1:
-                    f.write(f"  한 세트당 표준 편차: {statistics.stdev(utils.set_execution_times):.3f}초\n")
-
-                avg_seconds_per_set = statistics.mean(utils.set_execution_times)
-                f.write(f"  한 세트당 평균 처리 시간: {avg_seconds_per_set:.3f}초/세트\n")
-
-                f.write("\n" + "-" * 50 + "\n")
-
-            # 각 API별 통계 기록
-            for api_name, times in sorted(utils.api_times.items()):
-                if not times:
-                    continue
-
-                f.write(f"[{api_name} API 통계 (총 {len(times)}회)]\n")
-                f.write(f"  최소 응답 시간: {min(times):.3f}초\n")
-                f.write(f"  최대 응답 시간: {max(times):.3f}초\n")
-                f.write(f"  평균 응답 시간: {statistics.mean(times):.3f}초\n")
-
-                if len(times) > 1:
-                    f.write(f"  표준 편차: {statistics.stdev(times):.3f}초\n")
-
-                total_time = sum(times)
-                if total_time > 0:
-                    requests_per_second = len(times) / total_time
-                    f.write(f"  처리량: {requests_per_second:.2f} 요청/초\n")
-
-                f.write("\n")
-
-            # 전체 오류 통계
-            f.write(f"[오류 통계]\n")
-            f.write(f"  총 오류 수: {total_errors}\n")
-
-            if total_requests > 0:
-                error_rate = (total_errors / total_requests) * 100
-                f.write(f"  오류율: {error_rate:.2f}%\n")
-
-            if utils.errors:
-                f.write("\n[오류 목록]\n")
-                for error in utils.errors:
-                    f.write(f"  - {error}\n")
-
-        print(f"\n요약 결과가 '{summary_filename}' 파일에 저장되었습니다.")
+        print(f"\n요약 결과가 다음 파일들에 저장되었습니다:")
+        print(f"- '{summary_filename}'")
+        print(f"- '{fixed_summary_filename}'")
 
     # 상세 로그 (JSON 형식) 저장
     if save_details_json:
+        # 1. 날짜가 포함된 파일명
         detailed_filename = os.path.join(config.LOG_DIR, f"{now}_load_test_detailed_{concurrent_users}users_{set_count}sets.json")
+        # 2. 고정 파일명
+        fixed_detailed_filename = os.path.join(config.LOG_DIR, "load_test_detailed.json")
 
         try:
-            #with open(detailed_filename, "w", encoding="utf-8") as f:
-            with open(detailed_filename, "w", encoding="utf-8-sig") as f:
-                # 로그 메타데이터 추가
-                log_data = {
-                    "metadata": {
-                        "timestamp": datetime.now().isoformat(),
-                        "concurrent_users": concurrent_users,
-                        "sets_per_user": set_count,
-                        "total_sets": total_sets,
-                        "server": config.BASE_URL,
-                        "test_duration": sum(sum(times) for times in utils.api_times.values()),
-                        "total_requests": total_requests,
-                        "total_errors": total_errors
-                    },
-                    "requests": utils.detailed_logs
-                }
+            # 로그 메타데이터 추가
+            log_data = {
+                "metadata": {
+                    "timestamp": datetime.now().isoformat(),
+                    "concurrent_users": concurrent_users,
+                    "sets_per_user": set_count,
+                    "total_sets": total_sets,
+                    "server": config.BASE_URL,
+                    "test_duration": sum(sum(times) for times in utils.api_times.values()),
+                    "total_requests": total_requests,
+                    "total_errors": total_errors
+                },
+                "requests": utils.detailed_logs
+            }
 
+            # 1. 날짜가 포함된 파일에 저장
+            with open(detailed_filename, "w", encoding="utf-8-sig") as f:
                 # JSON으로 직렬화할 수 없는 객체 확인 및 제거
                 json.dump(log_data, f, ensure_ascii=False, indent=2, default=str)
 
-            print(f"상세 로그가 '{detailed_filename}' 파일에 저장되었습니다.")
+            # 2. 고정 파일명에 동일한 내용 저장
+            with open(fixed_detailed_filename, "w", encoding="utf-8-sig") as f:
+                # JSON으로 직렬화할 수 없는 객체 확인 및 제거
+                json.dump(log_data, f, ensure_ascii=False, indent=2, default=str)
+
+            print(f"상세 로그가 다음 파일들에 저장되었습니다:")
+            print(f"- '{detailed_filename}'")
+            print(f"- '{fixed_detailed_filename}'")
         except Exception as e:
             print(f"상세 로그 저장 중 오류 발생: {str(e)}")
