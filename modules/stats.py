@@ -28,12 +28,22 @@ def print_set_execution_statistics():
 
     print("\n" + "-" * 50)
 
-def print_api_statistics(api_name, times, index):
+def print_api_statistics(api_name, times, index, concurrent_users, set_count):
     """특정 API에 대한 통계 계산 및 출력"""
     if not times:
         return
 
-    print(f"\n[{index}. {api_name} API 통계 (총 {len(times)}회)]")
+    # 인증 관련 API와 일반 API 구분
+    auth_apis = ["CreateToken", "ConnectProvider"]
+    is_auth_api = api_name in auth_apis
+
+    # 호출 횟수 계산 방식 설명 추가
+    if is_auth_api:
+        call_explanation = f"동시 사용자 수({concurrent_users})만큼 호출"
+    else:
+        call_explanation = f"동시 사용자 수({concurrent_users}) × 세트 수({set_count}) = {concurrent_users * set_count}회 호출"
+
+    print(f"\n[{index}. {api_name} API 통계 (총 {len(times)}회, {call_explanation})]")
     print(f"  최소 응답 시간: {min(times):.3f}초")
     print(f"  최대 응답 시간: {max(times):.3f}초")
     print(f"  평균 응답 시간: {statistics.mean(times):.3f}초")
@@ -49,8 +59,29 @@ def print_api_statistics(api_name, times, index):
 
 def print_statistics():
     """테스트 결과 통계 출력"""
+    # 인증 API와 일반 API 구분하여 호출 횟수 계산
+    auth_apis = ["CreateToken", "ConnectProvider"]
+    auth_calls = sum(len(times) for api_name, times in utils.api_times.items() if api_name in auth_apis)
+    regular_calls = sum(len(times) for api_name, times in utils.api_times.items() if api_name not in auth_apis)
+    total_calls = auth_calls + regular_calls
+
+    # 동시 사용자 수와 세트 수 추정 (측정된 데이터로부터)
+    estimated_concurrent_users = auth_calls // 2  # CreateToken과 ConnectProvider 각각 호출
+    if regular_calls > 0 and estimated_concurrent_users > 0:
+        num_apis = 10  # CheckAppVersion, GetTimestamp 등 10개 API
+        estimated_set_count = regular_calls // (estimated_concurrent_users * num_apis)
+    else:
+        estimated_set_count = 0
+
     print("\n" + "=" * 50)
     print("부하 테스트 결과 통계")
+    print("=" * 50)
+
+    print(f"동시 사용자: {estimated_concurrent_users}명")
+    print(f"사용자당 API 테스트 세트: {estimated_set_count}개")
+    print(f"총 테스트 세트: {estimated_concurrent_users * estimated_set_count}개")
+    print(f"총 API 호출 횟수: {total_calls}회 (인증 {auth_calls}회 + 테스트 {regular_calls}회)")
+    print(f"서버: {config.BASE_URL}")
     print("=" * 50)
 
     # 세트 실행 시간 통계 출력
@@ -58,7 +89,7 @@ def print_statistics():
 
     # 각 API별 통계 출력 (넘버링 추가)
     for idx, (api_name, times) in enumerate(sorted(utils.api_times.items()), 1):
-        print_api_statistics(api_name, times, idx)
+        print_api_statistics(api_name, times, idx, estimated_concurrent_users, estimated_set_count)
 
     # 전체 오류 통계
     total_errors = len(utils.errors)
@@ -95,6 +126,13 @@ def save_results_to_file(concurrent_users, set_count=1, save_summary=True, save_
 
     # 총 테스트 세트 및 요청 수 계산
     total_sets = concurrent_users * set_count
+
+    # 인증 API와 일반 API 구분하여 호출 횟수 계산
+    auth_apis = ["CreateToken", "ConnectProvider"]
+    auth_calls = sum(len(times) for api_name, times in utils.api_times.items() if api_name in auth_apis)
+    regular_calls = sum(len(times) for api_name, times in utils.api_times.items() if api_name not in auth_apis)
+    total_calls = auth_calls + regular_calls
+
     total_requests = sum(len(times) for times in utils.api_times.values())
     total_errors = len(utils.errors)
 
@@ -108,6 +146,7 @@ def save_results_to_file(concurrent_users, set_count=1, save_summary=True, save_
             f.write(f"동시 사용자: {concurrent_users}명\n")
             f.write(f"사용자당 API 테스트 세트: {set_count}개\n")
             f.write(f"총 테스트 세트: {total_sets}개\n")
+            f.write(f"총 API 호출 횟수: {total_calls}회 (인증 {auth_calls}회 + 테스트 {regular_calls}회)\n")
             f.write(f"테스트 시간: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
             f.write(f"서버: {config.BASE_URL}\n")
             f.write("=" * 50 + "\n\n")
@@ -132,7 +171,17 @@ def save_results_to_file(concurrent_users, set_count=1, save_summary=True, save_
                 if not times:
                     continue
 
-                f.write(f"[{idx}. {api_name} API 통계 (총 {len(times)}회)]\n")
+                # 인증 관련 API와 일반 API 구분
+                auth_apis = ["CreateToken", "ConnectProvider"]
+                is_auth_api = api_name in auth_apis
+
+                # 호출 횟수 계산 방식 설명 추가
+                if is_auth_api:
+                    call_explanation = f"동시 사용자 수({concurrent_users})만큼 호출"
+                else:
+                    call_explanation = f"동시 사용자 수({concurrent_users}) × 세트 수({set_count}) = {concurrent_users * set_count}회 호출"
+
+                f.write(f"[{idx}. {api_name} API 통계 (총 {len(times)}회, {call_explanation})]\n")
                 f.write(f"  최소 응답 시간: {min(times):.3f}초\n")
                 f.write(f"  최대 응답 시간: {max(times):.3f}초\n")
                 f.write(f"  평균 응답 시간: {statistics.mean(times):.3f}초\n")
@@ -175,6 +224,9 @@ def save_results_to_file(concurrent_users, set_count=1, save_summary=True, save_
                         "concurrent_users": concurrent_users,
                         "sets_per_user": set_count,
                         "total_sets": total_sets,
+                        "total_api_calls": total_calls,
+                        "auth_calls": auth_calls,
+                        "test_calls": regular_calls,
                         "server": config.BASE_URL,
                         "test_duration": sum(sum(times) for times in utils.api_times.values()),
                         "total_requests": total_requests,
