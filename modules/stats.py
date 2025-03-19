@@ -74,12 +74,12 @@ def print_statistics():
         estimated_set_count = 0
 
     print("\n" + "=" * 50)
-    print("부하 테스트 결과 통계")
-    print("=" * 50)
-
-    print(f"동시 사용자: {estimated_concurrent_users}명")
-    print(f"사용자당 API 테스트 세트: {estimated_set_count}개")
-    print(f"총 테스트 세트: {estimated_concurrent_users * estimated_set_count}개")
+    print("[부하 테스트 결과]")
+    print("")
+    print(f"- 동시 사용자: {estimated_concurrent_users}명")
+    print(f"- 사용자당 API 테스트 세트: {estimated_set_count}개")
+    print(f"- 총 테스트 세트: {estimated_concurrent_users * estimated_set_count}개")
+    print("")
     print(f"총 API 호출 횟수: {total_calls}회 (인증 {auth_calls}회 + 테스트 {regular_calls}회)")
     print(f"서버: {config.BASE_URL}")
     print("=" * 50)
@@ -142,10 +142,10 @@ def save_results_to_file(concurrent_users, set_count=1, save_summary=True, save_
 
         with open(summary_filename, "w", encoding="utf-8-sig") as f:
             f.write("=" * 50 + "\n")
-            f.write(f"부하 테스트 결과\n")
-            f.write(f"동시 사용자: {concurrent_users}명\n")
-            f.write(f"사용자당 API 테스트 세트: {set_count}개\n")
-            f.write(f"총 테스트 세트: {total_sets}개\n")
+            f.write("[부하 테스트 결과]\n\n")
+            f.write(f"- 동시 사용자: {concurrent_users}명\n")
+            f.write(f"- 사용자당 API 테스트 세트: {set_count}개\n")
+            f.write(f"- 총 테스트 세트: {total_sets}개\n\n")
             f.write(f"총 API 호출 횟수: {total_calls}회 (인증 {auth_calls}회 + 테스트 {regular_calls}회)\n")
             f.write(f"테스트 시간: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
             f.write(f"서버: {config.BASE_URL}\n")
