@@ -1,0 +1,97 @@
+### Python ###
+# 바이트 컴파일된 / 최적화 / DLL 파일
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# 유닛 테스트 / 커버리지 리포트
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+junit.xml
+
+# 가상 환경
+venv/
+env/
+ENV/
+.env
+.venv
+env.bak/
+venv.bak/
+
+### PyCharm ###
+# PyCharm 설정 파일
+.idea/
+*.iws
+*.iml
+*.ipr
+.idea_modules/
+out/
+
+### 프로젝트 특화 ###
+# 로그 디렉토리 및 모든 하위 파일
+log/
+logs/
+**/log/
+**/logs/
+log/**/*
+logs/**/*
+load_test_results_*
+load_test_detailed_*
+
+# 테스트 기반 데이터 디렉토리 및 모든 하위 파일
+fixture/
+**/fixture/
+fixture/**/*
+data.json
+
+# 테스트 결과 파일
+*.log
+*.json.log
+*.txt.log
+
+### 운영체제 관련 ###
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msm
+*.msp
+*.lnk
+
+# Linux
+*~
+.directory
+.Trash-*
