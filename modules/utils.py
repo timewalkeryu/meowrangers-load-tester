@@ -10,6 +10,7 @@ from . import config
 
 # 결과 저장용 변수
 api_times = defaultdict(list)  # 각 API별 응답 시간 저장
+set_execution_times = []  # 각 세트별 전체 실행 시간 저장
 errors = []  # 오류 저장
 detailed_logs = []  # 상세 로그 저장
 

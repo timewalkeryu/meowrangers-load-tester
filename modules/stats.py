@@ -9,6 +9,25 @@ from datetime import datetime
 from . import config
 from . import utils
 
+def print_set_execution_statistics():
+    """세트 실행 시간에 대한 통계 계산 및 출력"""
+    if not utils.set_execution_times:
+        return
+
+    print(f"\n[API 테스트 세트 실행 시간 통계 (총 {len(utils.set_execution_times)}개 세트)]")
+    print(f"  최소 실행 시간: {min(utils.set_execution_times):.3f}초")
+    print(f"  최대 실행 시간: {max(utils.set_execution_times):.3f}초")
+    print(f"  평균 실행 시간: {statistics.mean(utils.set_execution_times):.3f}초")
+
+    if len(utils.set_execution_times) > 1:
+        print(f"  표준 편차: {statistics.stdev(utils.set_execution_times):.3f}초")
+
+    # 한 세트를 처리하는데 평균 소요 시간 계산
+    avg_seconds_per_set = statistics.mean(utils.set_execution_times)
+    print(f"  평균 세트 처리 시간: {avg_seconds_per_set:.3f}초/세트")
+
+    print("\n" + "=" * 50)
+
 def print_api_statistics(api_name, times):
     """특정 API에 대한 통계 계산 및 출력"""
     if not times:
@@ -34,6 +53,9 @@ def print_statistics():
     print("부하 테스트 결과 통계")
     print("=" * 50)
 
+    # 세트 실행 시간 통계 출력
+    print_set_execution_statistics()
+
     # 각 API별 통계 출력
     for api_name, times in sorted(utils.api_times.items()):
         print_api_statistics(api_name, times)
@@ -57,25 +79,44 @@ def print_statistics():
         if len(utils.errors) > 10:
             print(f"  ... 그 외 {len(utils.errors) - 10}개 오류")
 
-def save_results_to_file(concurrent_users):
+def save_results_to_file(concurrent_users, set_count=1):
     """테스트 결과를 파일로 저장"""
     utils.ensure_directory_exists(config.LOG_DIR)
 
     now = datetime.now().strftime("%Y%m%d_%H%M%S")
 
     # 요약 통계 파일
-    summary_filename = os.path.join(config.LOG_DIR, f"load_test_results_{concurrent_users}users_{now}.txt")
+    summary_filename = os.path.join(config.LOG_DIR, f"load_test_results_{concurrent_users}users_{set_count}sets_{now}.txt")
 
     # 상세 로그 파일 (JSON 형식)
-    detailed_filename = os.path.join(config.LOG_DIR, f"load_test_detailed_{concurrent_users}users_{now}.json")
+    detailed_filename = os.path.join(config.LOG_DIR, f"load_test_detailed_{concurrent_users}users_{set_count}sets_{now}.json")
 
     # 요약 통계 저장
     with open(summary_filename, "w", encoding="utf-8") as f:
         f.write("=" * 50 + "\n")
-        f.write(f"부하 테스트 결과 - {concurrent_users}명 동시 사용자\n")
+        f.write(f"부하 테스트 결과\n")
+        f.write(f"동시 사용자: {concurrent_users}명\n")
+        f.write(f"사용자당 API 테스트 세트: {set_count}개\n")
+        f.write(f"총 테스트 세트: {concurrent_users * set_count}개\n")
         f.write(f"테스트 시간: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
         f.write(f"서버: {config.BASE_URL}\n")
         f.write("=" * 50 + "\n\n")
+
+        # 세트 실행 시간 통계 기록
+        if utils.set_execution_times:
+            f.write(f"[API 테스트 세트 실행 시간 통계 (총 {len(utils.set_execution_times)}개 세트)]\n")
+            f.write(f"  최소 실행 시간: {min(utils.set_execution_times):.3f}초\n")
+            f.write(f"  최대 실행 시간: {max(utils.set_execution_times):.3f}초\n")
+            f.write(f"  평균 실행 시간: {statistics.mean(utils.set_execution_times):.3f}초\n")
+
+            if len(utils.set_execution_times) > 1:
+                f.write(f"  표준 편차: {statistics.stdev(utils.set_execution_times):.3f}초\n")
+
+            # 한 세트를 처리하는데 평균 소요 시간 계산
+            avg_seconds_per_set = statistics.mean(utils.set_execution_times)
+            f.write(f"  평균 세트 처리 시간: {avg_seconds_per_set:.3f}초/세트\n")
+
+            f.write("\n" + "=" * 50 + "\n")
 
         # 각 API별 통계 기록
         for api_name, times in sorted(utils.api_times.items()):
@@ -124,6 +165,8 @@ def save_results_to_file(concurrent_users):
                 "metadata": {
                     "timestamp": datetime.now().isoformat(),
                     "concurrent_users": concurrent_users,
+                    "sets_per_user": set_count,
+                    "total_sets": concurrent_users * set_count,
                     "server": config.BASE_URL,
                     "test_duration": sum(sum(times) for times in utils.api_times.values()),
                     "total_requests": total_requests,
