@@ -63,8 +63,8 @@ load_test_results_*
 load_test_detailed_*
 
 # 테스트 기반 데이터 디렉토리 및 모든 하위 파일
-fixture/
-**/fixture/
+#fixture/
+#**/fixture/
 fixture/**/*
 data.json
 
