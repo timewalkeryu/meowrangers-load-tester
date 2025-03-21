@@ -65,54 +65,67 @@ async def run_api_test_set(session, index, token, set_id):
     # 세트 시작 시간 기록
     set_start_time = time.time()
 
+    # API 결과 추적
+    api_results = {}
+
     # 1. CheckAppVersion 호출 (추가됨)
     check_app_result = await api.check_app_version(session, index, token)
+    api_results["CheckAppVersion"] = check_app_result
     if not check_app_result:
         print(f"사용자 {index} - 세트 {set_id}: CheckAppVersion 실패")
 
     # 2. GetTimestamp 호출 (추가됨)
     timestamp_result = await api.get_timestamp(session, index, token)
+    api_results["GetTimestamp"] = timestamp_result
     if not timestamp_result:
         print(f"사용자 {index} - 세트 {set_id}: GetTimestamp 실패")
 
     # 3. SetUserData 호출
     set_data_result = await api.set_user_data(session, index, token)
+    api_results["SetUserData"] = set_data_result
     if not set_data_result:
         print(f"사용자 {index} - 세트 {set_id}: SetUserData 실패로 테스트 중단")
-        return False
+        return False, api_results
 
     # 4. GetUserData 호출
     get_data_result = await api.get_user_data(session, index, token)
+    api_results["GetUserData"] = get_data_result
     if not get_data_result:
         print(f"사용자 {index} - 세트 {set_id}: GetUserData 실패")
 
     # 5. GetAllMails 호출
     mail_result = await api.get_all_mails(session, index, token)
+    api_results["GetAllMails"] = mail_result
     if not mail_result:
         print(f"사용자 {index} - 세트 {set_id}: GetAllMails 실패")
 
     # 6. GetUnclaimedMailCount 호출 (추가됨)
     mail_count_result = await api.get_unclaimed_mail_count(session, index, token)
+    api_results["GetUnclaimedMailCount"] = mail_count_result
     if not mail_count_result:
         print(f"사용자 {index} - 세트 {set_id}: GetUnclaimedMailCount 실패")
 
     # 7. GetSeasonPassInfo 호출
     season_result = await api.get_season_pass_info(session, index, token)
+    api_results["GetSeasonPassInfo"] = season_result
     if not season_result:
         print(f"사용자 {index} - 세트 {set_id}: GetSeasonPassInfo 실패")
 
     # 8. GetEventInfo 호출
     event_result = await api.get_event_info(session, index, token)
+    api_results["GetEventInfo"] = event_result
     if not event_result:
         print(f"사용자 {index} - 세트 {set_id}: GetEventInfo 실패")
 
     # 9. GetAnnouncement 호출
     announcement_result = await api.get_announcement(session, index, token)
+    api_results["GetAnnouncement"] = announcement_result
     if not announcement_result:
         print(f"사용자 {index} - 세트 {set_id}: GetAnnouncement 실패")
 
     # 10. GetRollingAnnouncement 호출
     rolling_result = await api.get_rolling_announcement(session, index, token)
+    api_results["GetRollingAnnouncement"] = rolling_result
     if not rolling_result:
         print(f"사용자 {index} - 세트 {set_id}: GetRollingAnnouncement 실패")
 
@@ -126,8 +139,15 @@ async def run_api_test_set(session, index, token, set_id):
     # 세트 소요 시간 저장
     utils.set_execution_times.append(set_elapsed_time)
 
-    print(f"사용자 {index} - 세트 {set_id}: API 테스트 세트 완료 (소요 시간: {set_elapsed_time:.3f}초)")
-    return True
+    # API 성공률 계산
+    success_count = sum(1 for result in api_results.values() if result)
+    api_success_rate = success_count / len(api_results) * 100
+
+    print(f"사용자 {index} - 세트 {set_id}: API 테스트 세트 완료 (소요 시간: {set_elapsed_time:.3f}초, 성공률: {api_success_rate:.2f}%)")
+
+    # 세트의 성공 여부는 특정 조건에 따라 결정
+    # 여기서는 SetUserData가 성공했는지를 기준으로 함
+    return api_results["SetUserData"], api_results
 
 
 async def run_repeated_api_tests(token_info, set_count):
@@ -139,6 +159,7 @@ async def run_repeated_api_tests(token_info, set_count):
     connector = aiohttp.TCPConnector(ssl=False, limit=0)  # SSL 검증 비활성화, 연결 제한 해제
 
     success_count = 0
+    api_success_counts = {}  # 각 API별 성공 횟수 추적
 
     print(f"사용자 {index}: {set_count}개의 API 테스트 세트 실행 시작")
 
@@ -152,12 +173,33 @@ async def run_repeated_api_tests(token_info, set_count):
                 )
             )
 
-        # 모든 세트의 결과 수집
+        # 모든 세트의 결과 수집 (각 세트당 성공 여부와 API별 결과 딕셔너리)
         results = await asyncio.gather(*tasks)
-        success_count = sum(1 for result in results if result)
+
+        # 세트별 성공 여부 카운트
+        success_count = sum(1 for result, _ in results if result)
+
+        # API별 성공률 집계
+        for _, api_results in results:
+            for api_name, success in api_results.items():
+                if api_name not in api_success_counts:
+                    api_success_counts[api_name] = {"success": 0, "total": 0}
+                api_success_counts[api_name]["total"] += 1
+                if success:
+                    api_success_counts[api_name]["success"] += 1
+
+    # API별 성공률 출력
+    for api_name, counts in api_success_counts.items():
+        if counts["total"] > 0:
+            success_rate = (counts["success"] / counts["total"]) * 100
+            print(f"사용자 {index}: {api_name} API 성공률: {success_rate:.2f}% ({counts['success']}/{counts['total']})")
 
     print(f"사용자 {index}: {success_count}/{set_count} API 테스트 세트 성공")
-    return success_count
+    return {
+        "set_success_count": success_count,
+        "total_sets": set_count,
+        "api_success_counts": api_success_counts
+    }
 
 
 async def run_load_test(concurrent_users, set_count=1):
@@ -168,13 +210,19 @@ async def run_load_test(concurrent_users, set_count=1):
     auth_time = time.time() - start_time
 
     # 인증 성공률 계산
-    auth_success_rate = (len(tokens) / concurrent_users) * 100 if concurrent_users > 0 else 0
+    auth_success_count = len(tokens)
+    auth_success_rate = (auth_success_count / concurrent_users) * 100 if concurrent_users > 0 else 0
 
     if not tokens:
         print("인증된 토큰이 없어 테스트를 중단합니다.")
         return {
+            'auth_success_count': auth_success_count,
+            'auth_total_count': concurrent_users,
             'auth_success_rate': auth_success_rate,
-            'api_set_success_rate': 0
+            'api_set_success_count': 0,
+            'api_set_total_count': 0,
+            'api_set_success_rate': 0,
+            'api_success_rates': {}
         }
 
     print(f"\n인증 프로세스 총 소요 시간: {auth_time:.2f}초")
@@ -189,19 +237,42 @@ async def run_load_test(concurrent_users, set_count=1):
     results = await asyncio.gather(*tasks)
 
     api_test_time = time.time() - start_time
-    total_sets = len(tokens) * set_count
-    successful_sets = sum(results)
+
+    # 세트 성공 계산
+    set_success_count = sum(result["set_success_count"] for result in results)
+    total_sets = sum(result["total_sets"] for result in results)
+
+    # API별 성공률 집계
+    api_success_rates = {}
+    for result in results:
+        for api_name, counts in result["api_success_counts"].items():
+            if api_name not in api_success_rates:
+                api_success_rates[api_name] = {"success": 0, "total": 0}
+            api_success_rates[api_name]["success"] += counts["success"]
+            api_success_rates[api_name]["total"] += counts["total"]
+
+    # API별 성공률 계산
+    for api_name, counts in api_success_rates.items():
+        if counts["total"] > 0:
+            success_rate = (counts["success"] / counts["total"]) * 100
+            api_success_rates[api_name]["rate"] = success_rate
+            print(f"{api_name} API 전체 성공률: {success_rate:.2f}% ({counts['success']}/{counts['total']})")
 
     # API 테스트 세트 성공률 계산
-    api_set_success_rate = (successful_sets / total_sets) * 100 if total_sets > 0 else 0
+    api_set_success_rate = (set_success_count / total_sets) * 100 if total_sets > 0 else 0
 
     print(f"\nAPI 테스트 총 소요 시간: {api_test_time:.2f}초")
-    print(f"성공적으로 완료된 API 테스트 세트: {successful_sets}/{total_sets}")
+    print(f"성공적으로 완료된 API 테스트 세트: {set_success_count}/{total_sets} ({api_set_success_rate:.2f}%)")
     if total_sets > 0:
         print(f"평균 세트 처리 시간: {api_test_time / total_sets:.2f}초/세트")
 
     # 결과 반환
     return {
+        'auth_success_count': auth_success_count,
+        'auth_total_count': concurrent_users,
         'auth_success_rate': auth_success_rate,
-        'api_set_success_rate': api_set_success_rate
+        'api_set_success_count': set_success_count,
+        'api_set_total_count': total_sets,
+        'api_set_success_rate': api_set_success_rate,
+        'api_success_rates': api_success_rates
     }
