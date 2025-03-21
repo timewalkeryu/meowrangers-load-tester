@@ -11,47 +11,42 @@ from . import api
 from . import utils
 
 
-async def create_token_and_connect_for_user(session, index, semaphore):
-    """단일 사용자에 대한 토큰 생성 및 연결 프로세스"""
-    # 세마포어를 사용하여 동시 요청 수 제한
-    async with semaphore:
-        print(f"사용자 {index}: 인증 프로세스 시작")
+async def create_token_and_connect_for_user(session, index):
+    """단일 사용자에 대한 토큰 생성 및 연결 프로세스 (세마포어 제거)"""
+    print(f"사용자 {index}: 인증 프로세스 시작")
 
-        # 1. CreateToken 호출
-        initial_token = await api.create_token(session, index)
-        if not initial_token:
-            print(f"사용자 {index}: 초기 토큰 생성 실패")
-            return None
+    # 1. CreateToken 호출
+    initial_token = await api.create_token(session, index)
+    if not initial_token:
+        print(f"사용자 {index}: 초기 토큰 생성 실패")
+        return None
 
-        # 약간의 지연 추가 (선택사항)
-        await asyncio.sleep(0.1)
+    # 약간의 지연 추가 (선택사항)
+    await asyncio.sleep(0.1)
 
-        # 2. ConnectProvider 호출하여 새 토큰 획득
-        new_token = await api.connect_provider(session, index, initial_token)
-        if not new_token:
-            print(f"사용자 {index}: ConnectProvider 실패")
-            return None
+    # 2. ConnectProvider 호출하여 새 토큰 획득
+    new_token = await api.connect_provider(session, index, initial_token)
+    if not new_token:
+        print(f"사용자 {index}: ConnectProvider 실패")
+        return None
 
-        print(f"사용자 {index}: 인증 프로세스 완료, 새 토큰 획득")
-        return index, new_token
+    print(f"사용자 {index}: 인증 프로세스 완료, 새 토큰 획득")
+    return index, new_token
 
 
-async def create_tokens_and_connect_parallel(concurrent_users, max_concurrent_auth=5):
-    """병렬로 토큰 생성 및 인증 프로세스 수행 (제한된 동시성으로)"""
+async def create_tokens_and_connect_parallel(concurrent_users):
+    """병렬로 토큰 생성 및 인증 프로세스 수행 (동시성 제한 없음)"""
     new_tokens = []
 
-    print(f"{concurrent_users}명의 사용자에 대해 제한된 동시성({max_concurrent_auth})으로 인증 프로세스를 진행합니다...")
-
-    # 세마포어를 사용하여 동시 인증 요청 수 제한
-    semaphore = asyncio.Semaphore(max_concurrent_auth)
+    print(f"{concurrent_users}명의 사용자에 대해 완전 병렬로 인증 프로세스를 진행합니다...")
 
     # HTTP 클라이언트 세션 생성
     timeout = aiohttp.ClientTimeout(total=60)  # 타임아웃 설정 (60초)
-    connector = aiohttp.TCPConnector(ssl=False)  # SSL 검증 비활성화
+    connector = aiohttp.TCPConnector(ssl=False, limit=0)  # SSL 검증 비활성화, 연결 제한 해제
 
     async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
-        # 모든 사용자에 대한 인증 태스크 생성
-        tasks = [create_token_and_connect_for_user(session, i, semaphore) for i in range(concurrent_users)]
+        # 모든 사용자에 대한 인증 태스크 생성 (세마포어 없음)
+        tasks = [create_token_and_connect_for_user(session, i) for i in range(concurrent_users)]
 
         # 모든 태스크 실행 및 결과 수집
         results = await asyncio.gather(*tasks)
@@ -135,16 +130,13 @@ async def run_api_test_set(session, index, token, set_id):
     return True
 
 
-async def run_repeated_api_tests(token_info, set_count, concurrent_sets=10):
-    """한 사용자에 대해 API 테스트 세트를 지정된 횟수만큼 반복 실행"""
+async def run_repeated_api_tests(token_info, set_count):
+    """한 사용자에 대해 API 테스트 세트를 지정된 횟수만큼 완전 병렬로 실행"""
     index, token = token_info
-
-    # 세마포어를 사용하여 동시 세트 실행 수 제한
-    semaphore = asyncio.Semaphore(concurrent_sets)
 
     # HTTP 클라이언트 세션 생성
     timeout = aiohttp.ClientTimeout(total=30)  # 타임아웃 설정 (30초)
-    connector = aiohttp.TCPConnector(ssl=False)  # SSL 검증 비활성화
+    connector = aiohttp.TCPConnector(ssl=False, limit=0)  # SSL 검증 비활성화, 연결 제한 해제
 
     success_count = 0
 
@@ -153,13 +145,10 @@ async def run_repeated_api_tests(token_info, set_count, concurrent_sets=10):
     async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
         tasks = []
         for set_id in range(set_count):
-            # 세마포어를 사용하여 동시 실행 세트 수 제한
+            # 세마포어 없이 직접 태스크 생성
             tasks.append(
                 asyncio.create_task(
-                    async_run_with_semaphore(
-                        semaphore,
-                        run_api_test_set(session, index, token, set_id)
-                    )
+                    run_api_test_set(session, index, token, set_id)
                 )
             )
 
@@ -179,9 +168,9 @@ async def async_run_with_semaphore(semaphore, coro):
 
 async def run_load_test(concurrent_users, set_count=1):
     """전체 부하 테스트 실행"""
-    # 1. 제한된 동시성으로 토큰 생성 및 ConnectProvider 호출
+    # 1. 무제한 동시성으로 토큰 생성 및 ConnectProvider 호출
     start_time = time.time()
-    tokens = await create_tokens_and_connect_parallel(concurrent_users, config.DEFAULT_CONCURRENT_USERS)
+    tokens = await create_tokens_and_connect_parallel(concurrent_users)  # 세마포어 제한 파라미터 제거
     auth_time = time.time() - start_time
 
     if not tokens:
