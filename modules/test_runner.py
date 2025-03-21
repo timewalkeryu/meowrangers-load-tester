@@ -131,7 +131,7 @@ async def run_api_test_set(session, index, token, set_id):
 
 
 async def run_repeated_api_tests(token_info, set_count):
-    """한 사용자에 대해 API 테스트 세트를 지정된 횟수만큼 완전 병렬로 실행"""
+    """한 사용자에 대해 API 테스트 세트를 지정된 횟수만큼 반복 실행"""
     index, token = token_info
 
     # HTTP 클라이언트 세션 생성
@@ -145,7 +145,7 @@ async def run_repeated_api_tests(token_info, set_count):
     async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
         tasks = []
         for set_id in range(set_count):
-            # 세마포어 없이 직접 태스크 생성
+            # 직접 태스크 생성 (세마포어 없음)
             tasks.append(
                 asyncio.create_task(
                     run_api_test_set(session, index, token, set_id)
@@ -160,22 +160,22 @@ async def run_repeated_api_tests(token_info, set_count):
     return success_count
 
 
-async def async_run_with_semaphore(semaphore, coro):
-    """세마포어와 함께 코루틴 실행"""
-    async with semaphore:
-        return await coro
-
-
 async def run_load_test(concurrent_users, set_count=1):
     """전체 부하 테스트 실행"""
     # 1. 무제한 동시성으로 토큰 생성 및 ConnectProvider 호출
     start_time = time.time()
-    tokens = await create_tokens_and_connect_parallel(concurrent_users)  # 세마포어 제한 파라미터 제거
+    tokens = await create_tokens_and_connect_parallel(concurrent_users)
     auth_time = time.time() - start_time
+
+    # 인증 성공률 계산
+    auth_success_rate = (len(tokens) / concurrent_users) * 100 if concurrent_users > 0 else 0
 
     if not tokens:
         print("인증된 토큰이 없어 테스트를 중단합니다.")
-        return
+        return {
+            'auth_success_rate': auth_success_rate,
+            'api_set_success_rate': 0
+        }
 
     print(f"\n인증 프로세스 총 소요 시간: {auth_time:.2f}초")
     print(f"{len(tokens)}개의 인증된 토큰으로 API 테스트를 시작합니다...")
@@ -192,6 +192,16 @@ async def run_load_test(concurrent_users, set_count=1):
     total_sets = len(tokens) * set_count
     successful_sets = sum(results)
 
+    # API 테스트 세트 성공률 계산
+    api_set_success_rate = (successful_sets / total_sets) * 100 if total_sets > 0 else 0
+
     print(f"\nAPI 테스트 총 소요 시간: {api_test_time:.2f}초")
     print(f"성공적으로 완료된 API 테스트 세트: {successful_sets}/{total_sets}")
-    print(f"평균 세트 처리 시간: {api_test_time / total_sets:.2f}초/세트")
+    if total_sets > 0:
+        print(f"평균 세트 처리 시간: {api_test_time / total_sets:.2f}초/세트")
+
+    # 결과 반환
+    return {
+        'auth_success_rate': auth_success_rate,
+        'api_set_success_rate': api_set_success_rate
+    }
