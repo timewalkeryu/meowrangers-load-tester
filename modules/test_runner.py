@@ -22,7 +22,7 @@ async def create_token_and_connect_for_user(session, index):
         return None
 
     # 약간의 지연 추가 (선택사항)
-    await asyncio.sleep(0.1)
+    # await asyncio.sleep(0.1)
 
     # 2. ConnectProvider 호출하여 새 토큰 획득
     new_token = await api.connect_provider(session, index, initial_token)
