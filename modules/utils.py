@@ -72,7 +72,8 @@ def log_detailed_request(user_id, api_name, url, method, headers, payload, respo
             "headers": masked_headers,
             "status_code": status_code,
             "elapsed_time": elapsed_time,
-            "error": error
+            "error": error,  # 성공 시 None, 실패 시 오류 메시지
+            "is_success": error is None  # 오류가 없으면 성공
         }
 
         # 요청 페이로드 추가 (있는 경우)

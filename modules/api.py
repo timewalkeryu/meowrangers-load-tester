@@ -11,7 +11,7 @@ from . import config
 from . import utils
 
 async def call_api(session, url, method, headers=None, payload=None, api_name=None, index=None):
-    """일반적인 API 호출 함수"""
+    """일반적인 API 호출 함수 - 최종 결과 중심으로 수정"""
     start_time = time.time()
     api_name = api_name or url.split('/')[-1]  # URL의 마지막 부분을 API 이름으로 사용
 
@@ -23,6 +23,7 @@ async def call_api(session, url, method, headers=None, payload=None, api_name=No
     result = None
     status_code = None
     elapsed = 0
+    is_success = False  # API 호출 최종 성공 여부
 
     try:
         if method.upper() == "GET":
@@ -34,7 +35,6 @@ async def call_api(session, url, method, headers=None, payload=None, api_name=No
                 if response.status != 200:
                     error_msg = f"HTTP {response.status}"
                     print(f"[{index}] {api_name} 실패: HTTP {response.status}")
-                    utils.errors.append(f"{api_name}-{index}: HTTP {response.status}")
                     try:
                         result = await response.json()
                     except:
@@ -45,6 +45,7 @@ async def call_api(session, url, method, headers=None, payload=None, api_name=No
                 else:
                     result = await response.json()
                     print(f"[{index}] {api_name} 완료: {elapsed:.2f}초")
+                    is_success = True  # 성공 설정
         else:  # POST, PUT, DELETE
             request_kwargs = {"headers": headers}
             if payload:
@@ -59,7 +60,6 @@ async def call_api(session, url, method, headers=None, payload=None, api_name=No
                 if response.status != 200:
                     error_msg = f"HTTP {response.status}"
                     print(f"[{index}] {api_name} 실패: HTTP {response.status}")
-                    utils.errors.append(f"{api_name}-{index}: HTTP {response.status}")
                     try:
                         result = await response.json()
                     except:
@@ -70,14 +70,18 @@ async def call_api(session, url, method, headers=None, payload=None, api_name=No
                 else:
                     result = await response.json()
                     print(f"[{index}] {api_name} 완료: {elapsed:.2f}초")
+                    is_success = True  # 성공 설정
 
     except Exception as e:
         elapsed = time.time() - start_time
         error_msg = str(e)
         print(f"[{index}] {api_name} 중 오류: {str(e)} ({elapsed:.2f}초)")
-        utils.errors.append(f"{api_name}-{index}: {str(e)}")
 
-    # 상세 로그 기록
+    # 최종 결과가 실패한 경우에만 오류 기록 - 이 부분이 핵심 변경점
+    if not is_success:
+        utils.errors.append(f"{api_name}-{index}: {error_msg or '알 수 없는 오류'}")
+
+    # 상세 로그 기록 - 성공 여부에 따라 error 필드를 다르게 설정
     utils.log_detailed_request(
         user_id=index,
         api_name=api_name,
@@ -88,9 +92,10 @@ async def call_api(session, url, method, headers=None, payload=None, api_name=No
         response=result,
         status_code=status_code,
         elapsed_time=elapsed,
-        error=error_msg
+        error=None if is_success else error_msg  # 성공 시 오류 없음
     )
 
+    # 중요: 원래 응답 데이터를 반환
     return result
 
 async def create_token(session, index):
