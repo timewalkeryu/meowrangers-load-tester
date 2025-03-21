@@ -135,21 +135,21 @@ def main():
     # 1. 인증 과정 성공률 체크
     auth_success_rate = test_results.get('auth_success_rate', 0)
     if auth_success_rate < min_success_rate:
-        print(f"❌ 인증 과정 성공률({auth_success_rate:.2f}%)이 최소 요구치({min_success_rate}%)보다 낮습니다.")
+        print(f"❌ 인증 API 성공률({auth_success_rate:.2f}%)이 최소 요구치({min_success_rate}%)보다 낮습니다.")
         print(f"   - 성공: {test_results.get('auth_success_count', 0)}/{test_results.get('auth_total_count', 0)} 사용자")
         is_successful = False
     else:
-        print(f"✅ 인증 과정 성공률: {auth_success_rate:.2f}%")
+        print(f"✅ 인증 API 성공률: {auth_success_rate:.2f}%")
         print(f"   - 성공: {test_results.get('auth_success_count', 0)}/{test_results.get('auth_total_count', 0)} 사용자")
 
     # 2. API 테스트 세트 성공률 체크
     api_set_success_rate = test_results.get('api_set_success_rate', 0)
     if api_set_success_rate < min_success_rate:
-        print(f"❌ API 테스트 세트 성공률({api_set_success_rate:.2f}%)이 최소 요구치({min_success_rate}%)보다 낮습니다.")
+        print(f"❌ 나머지 API 세트 성공률({api_set_success_rate:.2f}%)이 최소 요구치({min_success_rate}%)보다 낮습니다.")
         print(f"   - 성공: {test_results.get('api_set_success_count', 0)}/{test_results.get('api_set_total_count', 0)} 세트")
         is_successful = False
     else:
-        print(f"✅ API 테스트 세트 성공률: {api_set_success_rate:.2f}%")
+        print(f"✅ 나머지 API 세트 성공률: {api_set_success_rate:.2f}%")
         print(f"   - 성공: {test_results.get('api_set_success_count', 0)}/{test_results.get('api_set_total_count', 0)} 세트")
 
     # 3. 각 API별 성공률 출력 (옵션)
@@ -185,7 +185,7 @@ def main():
     auth_total = sum(api_success_failures.get(api, {}).get('total', 0) for api in auth_apis)
     auth_error_rate = ((auth_total - auth_success) / auth_total * 100) if auth_total > 0 else 0
 
-    # 테스트 API 오류
+    # 나머지 API 오류
     regular_apis = [api for api in api_success_failures.keys() if api not in auth_apis]
     regular_success = sum(api_success_failures.get(api, {}).get('success', 0) for api in regular_apis)
     regular_total = sum(api_success_failures.get(api, {}).get('total', 0) for api in regular_apis)
@@ -199,19 +199,19 @@ def main():
     # 5. 오류율 판정 - HTTP 상태 코드 기반
     print(f"\n[오류율 판정]")
     if auth_error_rate > error_threshold:
-        print(f"❌ 인증 과정 오류율({auth_error_rate:.2f}%)이 허용 임계값({error_threshold}%)을 초과했습니다.")
+        print(f"❌ 인증 API 오류율({auth_error_rate:.2f}%)이 허용 임계값({error_threshold}%)을 초과했습니다.")
         print(f"   - 오류: {auth_total - auth_success}/{auth_total} 호출")
         is_successful = False
     else:
-        print(f"✅ 인증 과정 오류율: {auth_error_rate:.2f}%")
+        print(f"✅ 인증 API 오류율: {auth_error_rate:.2f}%")
         print(f"   - 오류: {auth_total - auth_success}/{auth_total} 호출")
 
     if regular_error_rate > error_threshold:
-        print(f"❌ API 테스트 오류율({regular_error_rate:.2f}%)이 허용 임계값({error_threshold}%)을 초과했습니다.")
+        print(f"❌ 나머지 API 오류율({regular_error_rate:.2f}%)이 허용 임계값({error_threshold}%)을 초과했습니다.")
         print(f"   - 오류: {regular_total - regular_success}/{regular_total} 호출")
         is_successful = False
     else:
-        print(f"✅ API 테스트 오류율: {regular_error_rate:.2f}%")
+        print(f"✅ 나머지 API 오류율: {regular_error_rate:.2f}%")
         print(f"   - 오류: {regular_total - regular_success}/{regular_total} 호출")
 
     if total_error_rate > error_threshold:
