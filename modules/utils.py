@@ -49,7 +49,7 @@ def mask_token(token):
         return token[:5] + '*' * (len(token) - 10) + token[-5:]
     return token
 
-def log_detailed_request(user_id, api_name, url, method, headers, payload, response, status_code, elapsed_time, error=None):
+def log_detailed_request(user_id, api_name, url, method, headers, payload, response, status_code, elapsed_time, error=None, is_success=None):
     """요청과 응답 정보를 상세하게 기록"""
     try:
         # 헤더에서 토큰 마스킹 처리
@@ -63,6 +63,10 @@ def log_detailed_request(user_id, api_name, url, method, headers, payload, respo
                     masked_token = mask_token(token)
                     masked_headers['Authorization'] = f'Bearer {masked_token}'
 
+        # is_success가 명시적으로 지정되지 않은 경우, error의 존재 여부로 판단
+        if is_success is None:
+            is_success = error is None
+
         log_entry = {
             "timestamp": datetime.now().isoformat(),
             "user_id": user_id,
@@ -73,7 +77,7 @@ def log_detailed_request(user_id, api_name, url, method, headers, payload, respo
             "status_code": status_code,
             "elapsed_time": elapsed_time,
             "error": error,  # 성공 시 None, 실패 시 오류 메시지
-            "is_success": error is None  # 오류가 없으면 성공
+            "is_success": is_success  # 명시적 성공 여부 표시
         }
 
         # 요청 페이로드 추가 (있는 경우)

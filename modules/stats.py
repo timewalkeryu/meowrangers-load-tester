@@ -59,7 +59,7 @@ def print_api_statistics(api_name, times, index, concurrent_users, set_count):
 
 
 def print_statistics():
-    """테스트 결과 통계 출력 - API 성공률 기반 오류율 계산"""
+    """테스트 결과 통계 출력 - 명확한 성공/실패 기준 사용"""
     # 인증 API와 일반 API 구분하여 호출 횟수 계산
     auth_apis = ["CreateToken", "ConnectProvider"]
     auth_calls = sum(len(times) for api_name, times in utils.api_times.items() if api_name in auth_apis)
@@ -90,19 +90,20 @@ def print_statistics():
     # 세트 실행 시간 통계 출력
     print_set_execution_statistics()
 
-    # 인증 과정과 API 테스트 세트 구분하여 통계 출력
-    print("\n" + "=" * 50)
-    print("[1. 인증 과정 통계]")
-
-    # API 성공률 기반 오류 계산 (API 결과를 기준으로)
+    # API 성공률 기반 오류 계산 (명확한 success 필드 사용)
     api_success_failures = {}
     for api_name in utils.api_times.keys():
-        api_success_count = len([log for log in utils.detailed_logs if log.get('api_name') == api_name and log.get('error') is None])
+        # is_success 필드를 기준으로 성공 여부 판단
+        api_success_count = len([log for log in utils.detailed_logs if log.get('api_name') == api_name and log.get('is_success') is True])
         api_total_count = len([log for log in utils.detailed_logs if log.get('api_name') == api_name])
         api_success_failures[api_name] = {
             'success': api_success_count,
             'total': api_total_count
         }
+
+    # 인증 과정과 API 테스트 세트 구분하여 통계 출력
+    print("\n" + "=" * 50)
+    print("[1. 인증 과정 통계]")
 
     # 인증 API 성공/오류 집계
     auth_success = sum(api_success_failures.get(api, {}).get('success', 0) for api in auth_apis)
@@ -115,8 +116,12 @@ def print_statistics():
     print(f"인증 과정 성공률: {100 - auth_error_rate:.2f}%")
 
     # 인증 성공 사용자 수 계산 (success_count/2 = 성공한 인증 사용자 수)
-    estimated_success_users = auth_success // 2
-    print(f"인증 성공 사용자: 약 {estimated_success_users}명/{estimated_concurrent_users}명 ({estimated_success_users / estimated_concurrent_users * 100:.2f}%)")
+    create_token_success = api_success_failures.get('CreateToken', {}).get('success', 0)
+    connect_provider_success = api_success_failures.get('ConnectProvider', {}).get('success', 0)
+    # 두 API 모두 성공해야 인증 성공으로 간주
+    estimated_success_users = min(create_token_success, connect_provider_success)
+    auth_success_rate = (estimated_success_users / estimated_concurrent_users * 100) if estimated_concurrent_users > 0 else 0
+    print(f"인증 성공 사용자: 약 {estimated_success_users}명/{estimated_concurrent_users}명 ({auth_success_rate:.2f}%)")
 
     # API 테스트 세트 통계
     print("\n[2. API 테스트 세트 통계]")
@@ -181,10 +186,10 @@ def print_statistics():
     else:
         print(f"✅ 전체 오류율: {total_error_rate:.2f}%")
 
-    if estimated_success_users / estimated_concurrent_users < config.MIN_SUCCESS_RATE / 100:
-        print(f"❌ 인증 성공 사용자 비율({estimated_success_users / estimated_concurrent_users * 100:.2f}%)이 최소 요구치({config.MIN_SUCCESS_RATE}%)보다 낮습니다.")
+    if auth_success_rate < config.MIN_SUCCESS_RATE:
+        print(f"❌ 인증 성공 사용자 비율({auth_success_rate:.2f}%)이 최소 요구치({config.MIN_SUCCESS_RATE}%)보다 낮습니다.")
     else:
-        print(f"✅ 인증 성공 사용자 비율: {estimated_success_users / estimated_concurrent_users * 100:.2f}%")
+        print(f"✅ 인증 성공 사용자 비율: {auth_success_rate:.2f}%")
 
 
 def save_results_to_file(concurrent_users, set_count=1, save_summary=True, save_details_json=False):

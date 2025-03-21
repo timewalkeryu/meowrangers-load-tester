@@ -11,13 +11,13 @@ from . import config
 from . import utils
 
 async def call_api(session, url, method, headers=None, payload=None, api_name=None, index=None):
-    """일반적인 API 호출 함수 - 최종 결과 중심으로 수정"""
+    """일반적인 API 호출 함수 - HTTP 상태 코드 200을 성공 기준으로 사용"""
     start_time = time.time()
     api_name = api_name or url.split('/')[-1]  # URL의 마지막 부분을 API 이름으로 사용
 
     if method.upper() not in ["GET", "POST", "PUT", "DELETE"]:
         print(f"지원하지 않는 HTTP 메서드: {method}")
-        return None
+        return None, False  # 결과와 성공 여부를 함께 반환
 
     error_msg = None
     result = None
@@ -32,20 +32,22 @@ async def call_api(session, url, method, headers=None, payload=None, api_name=No
                 utils.api_times[api_name].append(elapsed)
                 status_code = response.status
 
-                if response.status != 200:
-                    error_msg = f"HTTP {response.status}"
-                    print(f"[{index}] {api_name} 실패: HTTP {response.status}")
-                    try:
-                        result = await response.json()
-                    except:
-                        try:
-                            result = await response.text()
-                        except:
-                            result = None
-                else:
+                # 성공 기준: HTTP 상태 코드 200
+                is_success = (response.status == 200)
+
+                try:
                     result = await response.json()
-                    print(f"[{index}] {api_name} 완료: {elapsed:.2f}초")
-                    is_success = True  # 성공 설정
+                    if is_success:
+                        print(f"[{index}] {api_name} 완료: {elapsed:.2f}초")
+                    else:
+                        print(f"[{index}] {api_name} 실패: HTTP {response.status}")
+                except:
+                    try:
+                        result = await response.text()
+                    except:
+                        result = None
+                    if not is_success:
+                        print(f"[{index}] {api_name} 실패: HTTP {response.status} (응답 처리 오류)")
         else:  # POST, PUT, DELETE
             request_kwargs = {"headers": headers}
             if payload:
@@ -57,29 +59,32 @@ async def call_api(session, url, method, headers=None, payload=None, api_name=No
                 utils.api_times[api_name].append(elapsed)
                 status_code = response.status
 
-                if response.status != 200:
-                    error_msg = f"HTTP {response.status}"
-                    print(f"[{index}] {api_name} 실패: HTTP {response.status}")
-                    try:
-                        result = await response.json()
-                    except:
-                        try:
-                            result = await response.text()
-                        except:
-                            result = None
-                else:
+                # 성공 기준: HTTP 상태 코드 200
+                is_success = (response.status == 200)
+
+                try:
                     result = await response.json()
-                    print(f"[{index}] {api_name} 완료: {elapsed:.2f}초")
-                    is_success = True  # 성공 설정
+                    if is_success:
+                        print(f"[{index}] {api_name} 완료: {elapsed:.2f}초")
+                    else:
+                        print(f"[{index}] {api_name} 실패: HTTP {response.status}")
+                except:
+                    try:
+                        result = await response.text()
+                    except:
+                        result = None
+                    if not is_success:
+                        print(f"[{index}] {api_name} 실패: HTTP {response.status} (응답 처리 오류)")
 
     except Exception as e:
         elapsed = time.time() - start_time
         error_msg = str(e)
         print(f"[{index}] {api_name} 중 오류: {str(e)} ({elapsed:.2f}초)")
+        is_success = False  # 예외 발생 시 항상 실패로 처리
 
-    # 최종 결과가 실패한 경우에만 오류 기록 - 이 부분이 핵심 변경점
+    # 실패한 경우에만 오류 기록
     if not is_success:
-        utils.errors.append(f"{api_name}-{index}: {error_msg or '알 수 없는 오류'}")
+        utils.errors.append(f"{api_name}-{index}: {error_msg or f'HTTP {status_code}'}")
 
     # 상세 로그 기록 - 성공 여부에 따라 error 필드를 다르게 설정
     utils.log_detailed_request(
@@ -92,11 +97,12 @@ async def call_api(session, url, method, headers=None, payload=None, api_name=No
         response=result,
         status_code=status_code,
         elapsed_time=elapsed,
-        error=None if is_success else error_msg  # 성공 시 오류 없음
+        error=None if is_success else (error_msg or f'HTTP {status_code}'),  # 성공 시 오류 없음
+        is_success=is_success  # 명시적으로 성공 여부 저장
     )
 
-    # 중요: 원래 응답 데이터를 반환
-    return result
+    # 결과와 성공 여부를 함께 반환
+    return result, is_success
 
 async def create_token(session, index):
     """토큰 생성 함수"""
@@ -107,7 +113,8 @@ async def create_token(session, index):
         "server_alias": config.SERVER_ALIAS
     }
 
-    result = await call_api(
+    # call_api 함수는 이제 (result, is_success)를 반환
+    result, is_success = await call_api(
         session=session,
         url=url,
         method="POST",
@@ -116,7 +123,8 @@ async def create_token(session, index):
         index=index
     )
 
-    if not result:
+    # 성공하지 않았다면 None 반환
+    if not is_success or not result:
         return None
 
     # 토큰 추출
@@ -160,7 +168,8 @@ async def connect_provider(session, index, token):
         "provider_type": "GUEST"
     }
 
-    result = await call_api(
+    # call_api 함수는 이제 (result, is_success)를 반환
+    result, is_success = await call_api(
         session=session,
         url=url,
         method="POST",
@@ -170,7 +179,8 @@ async def connect_provider(session, index, token):
         index=index
     )
 
-    if not result:
+    # 성공하지 않았다면 None 반환
+    if not is_success or not result:
         return None
 
     # 새 토큰 추출
@@ -204,7 +214,8 @@ async def check_app_version(session, index, token):
         "Accept": "application/json"
     }
 
-    result = await call_api(
+    # call_api 함수는 이제 (result, is_success)를 반환
+    _, is_success = await call_api(
         session=session,
         url=url,
         method="GET",
@@ -213,7 +224,7 @@ async def check_app_version(session, index, token):
         index=index
     )
 
-    return result is not None
+    return is_success
 
 async def get_timestamp(session, index, token):
     """서버 타임스탬프 조회 함수"""
@@ -225,7 +236,8 @@ async def get_timestamp(session, index, token):
         "Accept": "application/json"
     }
 
-    result = await call_api(
+    # call_api 함수는 이제 (result, is_success)를 반환
+    _, is_success = await call_api(
         session=session,
         url=url,
         method="GET",
@@ -234,7 +246,7 @@ async def get_timestamp(session, index, token):
         index=index
     )
 
-    return result is not None
+    return is_success
 
 async def set_user_data(session, index, token):
     """사용자 데이터 설정 함수"""
@@ -257,7 +269,8 @@ async def set_user_data(session, index, token):
         "force_update": 0
     }
 
-    result = await call_api(
+    # call_api 함수는 이제 (result, is_success)를 반환
+    _, is_success = await call_api(
         session=session,
         url=url,
         method="POST",
@@ -267,7 +280,7 @@ async def set_user_data(session, index, token):
         index=index
     )
 
-    return result is not None
+    return is_success
 
 async def get_user_data(session, index, token):
     """사용자 데이터 요청 함수"""
@@ -279,7 +292,8 @@ async def get_user_data(session, index, token):
         "Accept": "application/json"
     }
 
-    result = await call_api(
+    # call_api 함수는 이제 (result, is_success)를 반환
+    _, is_success = await call_api(
         session=session,
         url=url,
         method="GET",
@@ -288,7 +302,7 @@ async def get_user_data(session, index, token):
         index=index
     )
 
-    return result is not None
+    return is_success
 
 async def get_all_mails(session, index, token):
     """모든 메일 조회 함수"""
@@ -300,7 +314,8 @@ async def get_all_mails(session, index, token):
         "Accept": "application/json"
     }
 
-    result = await call_api(
+    # call_api 함수는 이제 (result, is_success)를 반환
+    _, is_success = await call_api(
         session=session,
         url=url,
         method="GET",
@@ -309,7 +324,7 @@ async def get_all_mails(session, index, token):
         index=index
     )
 
-    return result is not None
+    return is_success
 
 async def get_unclaimed_mail_count(session, index, token):
     """읽지 않은 메일 수 조회 함수"""
@@ -321,7 +336,8 @@ async def get_unclaimed_mail_count(session, index, token):
         "Accept": "application/json"
     }
 
-    result = await call_api(
+    # call_api 함수는 이제 (result, is_success)를 반환
+    _, is_success = await call_api(
         session=session,
         url=url,
         method="GET",
@@ -330,7 +346,7 @@ async def get_unclaimed_mail_count(session, index, token):
         index=index
     )
 
-    return result is not None
+    return is_success
 
 async def get_season_pass_info(session, index, token):
     """시즌 패스 정보 조회 함수"""
@@ -342,7 +358,8 @@ async def get_season_pass_info(session, index, token):
         "Accept": "application/json"
     }
 
-    result = await call_api(
+    # call_api 함수는 이제 (result, is_success)를 반환
+    _, is_success = await call_api(
         session=session,
         url=url,
         method="GET",
@@ -351,7 +368,7 @@ async def get_season_pass_info(session, index, token):
         index=index
     )
 
-    return result is not None
+    return is_success
 
 async def get_event_info(session, index, token):
     """이벤트 정보 조회 함수"""
@@ -363,7 +380,8 @@ async def get_event_info(session, index, token):
         "Accept": "application/json"
     }
 
-    result = await call_api(
+    # call_api 함수는 이제 (result, is_success)를 반환
+    _, is_success = await call_api(
         session=session,
         url=url,
         method="GET",
@@ -372,7 +390,7 @@ async def get_event_info(session, index, token):
         index=index
     )
 
-    return result is not None
+    return is_success
 
 async def get_announcement(session, index, token):
     """공지사항 조회 함수"""
@@ -384,7 +402,8 @@ async def get_announcement(session, index, token):
         "Accept": "application/json"
     }
 
-    result = await call_api(
+    # call_api 함수는 이제 (result, is_success)를 반환
+    _, is_success = await call_api(
         session=session,
         url=url,
         method="GET",
@@ -393,7 +412,7 @@ async def get_announcement(session, index, token):
         index=index
     )
 
-    return result is not None
+    return is_success
 
 async def get_rolling_announcement(session, index, token):
     """롤링 공지사항 조회 함수"""
@@ -405,7 +424,8 @@ async def get_rolling_announcement(session, index, token):
         "Accept": "application/json"
     }
 
-    result = await call_api(
+    # call_api 함수는 이제 (result, is_success)를 반환
+    _, is_success = await call_api(
         session=session,
         url=url,
         method="GET",
@@ -414,4 +434,4 @@ async def get_rolling_announcement(session, index, token):
         index=index
     )
 
-    return result is not None
+    return is_success

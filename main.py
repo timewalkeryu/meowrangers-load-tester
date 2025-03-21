@@ -166,26 +166,29 @@ def main():
             else:
                 print(f"✅ {api_name}: {rate:.2f}% ({success}/{total})")
 
-    # 4. 오류율 계산 - API 성공률 기반으로 수정
+    # 4. 오류율 계산 - API 성공 데이터 기반
     auth_apis = ["CreateToken", "ConnectProvider"]
-    api_success_rates = test_results.get('api_success_rates', {})
+
+    # API 성공률 기반 오류 계산 (명확한 success 필드 사용)
+    api_success_failures = {}
+    for api_name in utils.api_times.keys():
+        # is_success 필드를 기준으로 성공 여부 판단
+        api_success_count = len([log for log in utils.detailed_logs if log.get('api_name') == api_name and log.get('is_success') is True])
+        api_total_count = len([log for log in utils.detailed_logs if log.get('api_name') == api_name])
+        api_success_failures[api_name] = {
+            'success': api_success_count,
+            'total': api_total_count
+        }
 
     # 인증 API 오류
-    auth_total = 0
-    auth_success = 0
-    for api_name, data in api_success_rates.items():
-        if api_name in auth_apis:
-            auth_success += data.get('success', 0)
-            auth_total += data.get('total', 0)
+    auth_success = sum(api_success_failures.get(api, {}).get('success', 0) for api in auth_apis)
+    auth_total = sum(api_success_failures.get(api, {}).get('total', 0) for api in auth_apis)
     auth_error_rate = ((auth_total - auth_success) / auth_total * 100) if auth_total > 0 else 0
 
     # 테스트 API 오류
-    regular_total = 0
-    regular_success = 0
-    for api_name, data in api_success_rates.items():
-        if api_name not in auth_apis:
-            regular_success += data.get('success', 0)
-            regular_total += data.get('total', 0)
+    regular_apis = [api for api in api_success_failures.keys() if api not in auth_apis]
+    regular_success = sum(api_success_failures.get(api, {}).get('success', 0) for api in regular_apis)
+    regular_total = sum(api_success_failures.get(api, {}).get('total', 0) for api in regular_apis)
     regular_error_rate = ((regular_total - regular_success) / regular_total * 100) if regular_total > 0 else 0
 
     # 전체 오류율
@@ -193,7 +196,7 @@ def main():
     total_calls = auth_total + regular_total
     total_error_rate = ((total_calls - total_success) / total_calls * 100) if total_calls > 0 else 0
 
-    # 5. 오류율 판정 - 수정된 계산 방식 기반
+    # 5. 오류율 판정 - HTTP 상태 코드 기반
     print(f"\n[오류율 판정]")
     if auth_error_rate > error_threshold:
         print(f"❌ 인증 과정 오류율({auth_error_rate:.2f}%)이 허용 임계값({error_threshold}%)을 초과했습니다.")
