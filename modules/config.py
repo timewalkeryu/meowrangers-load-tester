@@ -16,8 +16,8 @@ DEFAULT_CONCURRENT_USERS = 5  # 기본 동시 사용자 수 및 최대 동시 �
 DEFAULT_TEST_SETS = 2          # 기본 API 테스트 세트 수
 
 # 테스트 결과 검증 설정
-ERROR_THRESHOLD = 5.0        # 허용 최대 오류율(%)
-MIN_SUCCESS_RATE = 95.0      # 필요한 최소 성공률(%)
+ERROR_THRESHOLD = 0.0         # 허용 최대 오류율(%)
+MIN_SUCCESS_RATE = 100.0      # 필요한 최소 성공률(%)
 
 # 디렉터리 설정
 LOG_DIR = "log"
