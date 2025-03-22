@@ -58,7 +58,7 @@ def print_api_statistics(api_name, times, index, concurrent_users, set_count):
         print(f"  처리량: {requests_per_second:.2f} 요청/초")
 
 
-def print_statistics():
+def print_statistics(concurrent_users=None, set_count=None):
     """테스트 결과 통계 출력 - 명확한 성공/실패 기준 사용"""
     # 인증 API와 나머지 API 구분하여 호출 횟수 계산
     auth_apis = ["CreateToken", "ConnectProvider"]
@@ -66,20 +66,23 @@ def print_statistics():
     regular_calls = sum(len(times) for api_name, times in utils.api_times.items() if api_name not in auth_apis)
     total_calls = auth_calls + regular_calls
 
-    # 동시 사용자 수와 세트 수 추정 (측정된 데이터로부터)
-    estimated_concurrent_users = auth_calls // 2  # CreateToken과 ConnectProvider 각각 호출
-    if regular_calls > 0 and estimated_concurrent_users > 0:
-        num_apis = 10  # CheckAppVersion, GetTimestamp 등 10개 API
-        estimated_set_count = regular_calls // (estimated_concurrent_users * num_apis)
-    else:
-        estimated_set_count = 0
+    # 커맨드라인 인자에서 받은 값이 있으면 그 값을 사용, 없으면 추정
+    if concurrent_users is None:
+        concurrent_users = auth_calls // 2  # CreateToken과 ConnectProvider 각각 호출
+
+    if set_count is None:
+        if regular_calls > 0 and concurrent_users > 0:
+            num_apis = 10  # CheckAppVersion, GetTimestamp 등 10개 API
+            set_count = max(1, regular_calls // (concurrent_users * num_apis))
+        else:
+            set_count = 0
 
     print("\n" + "=" * 50)
     print("[부하 테스트 결과]")
     print("")
-    print(f"- 동시 사용자: {estimated_concurrent_users}명")
-    print(f"- 사용자당 API 테스트 세트: {estimated_set_count}개")
-    print(f"- 총 테스트 세트: {estimated_concurrent_users * estimated_set_count}개")
+    print(f"- 동시 사용자: {concurrent_users}명")
+    print(f"- 사용자당 API 테스트 세트: {set_count}개")
+    print(f"- 총 테스트 세트: {concurrent_users * set_count}개")
     print("")
     print(f"총 API 호출 횟수: {total_calls}회")
     print(f"- 인증 API 호출: {auth_calls}회")
@@ -120,8 +123,8 @@ def print_statistics():
     connect_provider_success = api_success_failures.get('ConnectProvider', {}).get('success', 0)
     # 두 API 모두 성공해야 인증 성공으로 간주
     estimated_success_users = min(create_token_success, connect_provider_success)
-    auth_success_rate = (estimated_success_users / estimated_concurrent_users * 100) if estimated_concurrent_users > 0 else 0
-    print(f"인증 성공 사용자: 약 {estimated_success_users}명/{estimated_concurrent_users}명 ({auth_success_rate:.2f}%)")
+    auth_success_rate = (estimated_success_users / concurrent_users * 100) if concurrent_users > 0 else 0
+    print(f"인증 성공 사용자: 약 {estimated_success_users}명/{concurrent_users}명 ({auth_success_rate:.2f}%)")
 
     # 나머지 API 통계
     print("\n[2. 나머지 API 통계]")
@@ -148,7 +151,7 @@ def print_statistics():
     # 각 API별 통계 출력 (넘버링 추가)
     print("\n[3. 개별 API 상세 통계]")
     for idx, (api_name, times) in enumerate(sorted(utils.api_times.items()), 1):
-        print_api_statistics(api_name, times, idx, estimated_concurrent_users, estimated_set_count)
+        print_api_statistics(api_name, times, idx, concurrent_users, set_count)
 
         # API 성공률 추가 표시
         success_count = api_success_failures.get(api_name, {}).get('success', 0)
@@ -226,10 +229,18 @@ def save_results_to_file(concurrent_users, set_count=1, save_summary=True, save_
     total_error_rate = (total_errors / total_requests * 100) if total_requests > 0 else 0
 
     # 인증 성공 사용자 수 계산
-    create_token_errors = len([err for err in utils.errors if "CreateToken" in err])
-    connect_provider_errors = len([err for err in utils.errors if "ConnectProvider" in err])
-    estimated_failed_users = create_token_errors + connect_provider_errors // 2  # 대략적인 추정
-    estimated_success_users = concurrent_users - estimated_failed_users
+    api_success_failures = {}
+    for api_name in utils.api_times.keys():
+        api_success_count = len([log for log in utils.detailed_logs if log.get('api_name') == api_name and log.get('is_success') is True])
+        api_total_count = len([log for log in utils.detailed_logs if log.get('api_name') == api_name])
+        api_success_failures[api_name] = {
+            'success': api_success_count,
+            'total': api_total_count
+        }
+
+    create_token_success = api_success_failures.get('CreateToken', {}).get('success', 0)
+    connect_provider_success = api_success_failures.get('ConnectProvider', {}).get('success', 0)
+    estimated_success_users = min(create_token_success, connect_provider_success)
     auth_success_rate = (estimated_success_users / concurrent_users * 100) if concurrent_users > 0 else 0
 
     # 요약 통계 파일 저장
@@ -332,6 +343,13 @@ def save_results_to_file(concurrent_users, set_count=1, save_summary=True, save_
                     requests_per_second = len(times) / total_time
                     f.write(f"  처리량: {requests_per_second:.2f} 요청/초\n")
 
+                # API 성공률 추가 표시
+                success_count = api_success_failures.get(api_name, {}).get('success', 0)
+                total_count = api_success_failures.get(api_name, {}).get('total', 0)
+                if total_count > 0:
+                    success_rate = (success_count / total_count) * 100
+                    f.write(f"  성공률: {success_rate:.2f}% ({success_count}/{total_count})\n")
+
             # 전체 오류 통계
             f.write("\n" + "=" * 50 + "\n")
             f.write("[전체 테스트 요약]\n\n")
@@ -342,23 +360,23 @@ def save_results_to_file(concurrent_users, set_count=1, save_summary=True, save_
 
             # 테스트 결과 판정
             f.write("\n[테스트 결과 판정]\n")
-            if auth_error_rate > 5.0:
-                f.write(f"❌ 인증 API 오류율({auth_error_rate:.2f}%)이 허용 임계값(5.0%)을 초과했습니다.\n")
+            if auth_error_rate > config.ERROR_THRESHOLD:
+                f.write(f"❌ 인증 API 오류율({auth_error_rate:.2f}%)이 허용 임계값({config.ERROR_THRESHOLD}%)을 초과했습니다.\n")
             else:
                 f.write(f"✅ 인증 API 오류율: {auth_error_rate:.2f}%\n")
 
-            if regular_error_rate > 5.0:
-                f.write(f"❌ 나머지 API 오류율({regular_error_rate:.2f}%)이 허용 임계값(5.0%)을 초과했습니다.\n")
+            if regular_error_rate > config.ERROR_THRESHOLD:
+                f.write(f"❌ 나머지 API 오류율({regular_error_rate:.2f}%)이 허용 임계값({config.ERROR_THRESHOLD}%)을 초과했습니다.\n")
             else:
                 f.write(f"✅ 나머지 API 오류율: {regular_error_rate:.2f}%\n")
 
-            if total_error_rate > 5.0:
-                f.write(f"❌ 전체 오류율({total_error_rate:.2f}%)이 허용 임계값(5.0%)을 초과했습니다.\n")
+            if total_error_rate > config.ERROR_THRESHOLD:
+                f.write(f"❌ 전체 오류율({total_error_rate:.2f}%)이 허용 임계값({config.ERROR_THRESHOLD}%)을 초과했습니다.\n")
             else:
                 f.write(f"✅ 전체 오류율: {total_error_rate:.2f}%\n")
 
-            if auth_success_rate < 95.0:
-                f.write(f"❌ 인증 성공 사용자 비율({auth_success_rate:.2f}%)이 최소 요구치(95.0%)보다 낮습니다.\n")
+            if auth_success_rate < config.MIN_SUCCESS_RATE:
+                f.write(f"❌ 인증 성공 사용자 비율({auth_success_rate:.2f}%)이 최소 요구치({config.MIN_SUCCESS_RATE}%)보다 낮습니다.\n")
             else:
                 f.write(f"✅ 인증 성공 사용자 비율: {auth_success_rate:.2f}%\n")
 

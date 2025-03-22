@@ -84,8 +84,7 @@ async def run_api_test_set(session, index, token, set_id):
     set_data_result = await api.set_user_data(session, index, token)
     api_results["SetUserData"] = set_data_result
     if not set_data_result:
-        print(f"사용자 {index} - 세트 {set_id}: SetUserData 실패로 테스트 중단")
-        return False, api_results
+        print(f"사용자 {index} - 세트 {set_id}: SetUserData 실패")
 
     # 4. GetUserData 호출
     get_data_result = await api.get_user_data(session, index, token)
@@ -143,11 +142,13 @@ async def run_api_test_set(session, index, token, set_id):
     success_count = sum(1 for result in api_results.values() if result)
     api_success_rate = success_count / len(api_results) * 100
 
-    print(f"사용자 {index} - 세트 {set_id}: API 테스트 세트 완료 (소요 시간: {set_elapsed_time:.3f}초, 성공률: {api_success_rate:.2f}%)")
+    # 세트 성공 여부 판정 - 모든 API가 성공해야 세트가 성공한 것으로 간주
+    is_set_success = all(api_results.values())
 
-    # 세트의 성공 여부는 특정 조건에 따라 결정
-    # 여기서는 SetUserData가 성공했는지를 기준으로 함
-    return api_results["SetUserData"], api_results
+    print(f"사용자 {index} - 세트 {set_id}: API 테스트 세트 완료 (소요 시간: {set_elapsed_time:.3f}초, 성공률: {api_success_rate:.2f}%, 세트 성공: {'예' if is_set_success else '아니오'})")
+
+    # 세트의 성공 여부와 API 결과를 함께 반환
+    return is_set_success, api_results
 
 
 async def run_repeated_api_tests(token_info, set_count):
@@ -222,7 +223,9 @@ async def run_load_test(concurrent_users, set_count=1):
             'api_set_success_count': 0,
             'api_set_total_count': 0,
             'api_set_success_rate': 0,
-            'api_success_rates': {}
+            'api_success_rates': {},
+            'concurrent_users': concurrent_users,
+            'set_count': set_count
         }
 
     print(f"\n인증 프로세스 총 소요 시간: {auth_time:.2f}초")
@@ -274,5 +277,7 @@ async def run_load_test(concurrent_users, set_count=1):
         'api_set_success_count': set_success_count,
         'api_set_total_count': total_sets,
         'api_set_success_rate': api_set_success_rate,
-        'api_success_rates': api_success_rates
+        'api_success_rates': api_success_rates,
+        'concurrent_users': concurrent_users,
+        'set_count': set_count
     }
