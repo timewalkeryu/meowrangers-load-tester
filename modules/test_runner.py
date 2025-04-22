@@ -41,8 +41,8 @@ async def create_tokens_and_connect_parallel(concurrent_users):
     print(f"{concurrent_users}명의 사용자에 대해 완전 병렬로 인증 프로세스를 진행합니다...")
 
     # HTTP 클라이언트 세션 생성
-    timeout = aiohttp.ClientTimeout(total=60)  # 타임아웃 설정 (60초)
-    connector = aiohttp.TCPConnector(ssl=False, limit=1000)  # SSL 검증 비활성화, 연결 제한 해제
+    timeout = aiohttp.ClientTimeout(total=config.HTTP_TIMEOUT)  # 타임아웃 설정
+    connector = aiohttp.TCPConnector(ssl=config.HTTP_VERIFY_SSL, limit=config.HTTP_MAX_CONNECTIONS)  # SSL 검증 비활성화, 연결 제한 해제
 
     async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
         # 모든 사용자에 대한 인증 태스크 생성 (세마포어 없음)
@@ -156,8 +156,8 @@ async def run_repeated_api_tests(token_info, set_count):
     index, token = token_info
 
     # HTTP 클라이언트 세션 생성
-    timeout = aiohttp.ClientTimeout(total=30)  # 타임아웃 설정 (30초)
-    connector = aiohttp.TCPConnector(ssl=False, limit=1000)  # SSL 검증 비활성화, 연결 제한 해제
+    timeout = aiohttp.ClientTimeout(total=config.HTTP_TIMEOUT)  # 타임아웃 설정
+    connector = aiohttp.TCPConnector(ssl=config.HTTP_VERIFY_SSL, limit=config.HTTP_MAX_CONNECTIONS)  # SSL 검증 비활성화, 연결 제한 해제
 
     success_count = 0
     api_success_counts = {}  # 각 API별 성공 횟수 추적

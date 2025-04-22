@@ -8,6 +8,11 @@ BASE_URL = "https://meowrangers-dev.layerlabgames.com"  # 개발 환경 URL
 # BASE_URL = "https://meowrangers-qa.layerlabgames.com"  # QA 환경 URL
 # BASE_URL = "https://meowrangers-prod.layerlabgames.com"  # 프로덕션 환경 URL
 
+# HTTP 클라이언트 설정
+HTTP_TIMEOUT = 60  # 타임아웃 설정 (초)
+HTTP_MAX_CONNECTIONS = 100  # 최대 동시 연결 수
+HTTP_VERIFY_SSL = False  # SSL 검증 여부
+
 # 테스트 설정
 SERVER_ALIAS = "SEOUL-001"
 PLATFORM_TYPE = "DEVICE"
