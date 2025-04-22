@@ -4,9 +4,20 @@
 import os
 
 # 서버 설정
-BASE_URL = "https://meowrangers-dev.layerlabgames.com"  # 개발 환경 URL
+# BASE_URL = "https://meowrangers-dev.layerlabgames.com"  # 개발 환경 URL
 # BASE_URL = "https://meowrangers-qa.layerlabgames.com"  # QA 환경 URL
 # BASE_URL = "https://meowrangers-prod.layerlabgames.com"  # 프로덕션 환경 URL
+
+# 서버 설정 (기본값은 개발 환경)
+# 환경 변수나 커맨드라인 인자로 덮어쓸 수 있음
+SERVER_ENVIRONMENTS = {
+    "dev": "https://meowrangers-dev.layerlabgames.com",
+    "qa": "https://meowrangers-qa.layerlabgames.com",
+    "live": "https://meowrangers-prod.layerlabgames.com"
+}
+
+# 기본값은 개발 환경
+BASE_URL = SERVER_ENVIRONMENTS.get("dev")
 
 # HTTP 클라이언트 설정
 HTTP_TIMEOUT = 60  # 타임아웃 설정 (초)

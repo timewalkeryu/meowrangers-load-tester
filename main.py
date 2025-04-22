@@ -29,10 +29,14 @@ def parse_arguments():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=f"""
 예시:
-  python main.py                    # 기본값({config.DEFAULT_CONCURRENT_USERS}명, {config.DEFAULT_TEST_SETS}세트)으로 테스트 실행
-  python main.py 200                # 200명의 동시 사용자로 테스트 실행 (기본 {config.DEFAULT_TEST_SETS}세트)
-  python main.py 100 10             # 100명의 동시 사용자, 각 사용자당 10세트 API 호출
+  python main.py                    # 기본값({config.DEFAULT_CONCURRENT_USERS}명, {config.DEFAULT_TEST_SETS}세트)으로 개발 환경 테스트
+  python main.py 200                # 200명의 동시 사용자로 개발 환경 테스트 (기본 {config.DEFAULT_TEST_SETS}세트)
+  python main.py 100 10             # 100명의 동시 사용자, 각 사용자당 10세트 API 호출 (개발 환경)
+  python main.py 100 10 --env qa    # 100명의 동시 사용자, 각 사용자당 10세트 API 호출 (QA 환경)
   python main.py -h, --help         # 도움말 표시
+
+서버 환경 옵션:
+  --env dev,qa,live                 # 테스트할 서버 환경 (기본: dev)
 
 추가 옵션:
   --no-summary                      # 요약 통계 파일 생성 비활성화
@@ -51,6 +55,9 @@ def parse_arguments():
 
     parser.add_argument("sets", type=int, nargs='?', default=config.DEFAULT_TEST_SETS,
                         help=f"각 사용자당 실행할 API 테스트 세트 수 (기본값: {config.DEFAULT_TEST_SETS})")
+
+    parser.add_argument("--env", choices=["dev", "qa", "live"], default="dev",
+                        help="테스트할 서버 환경 (dev, qa, live)")
 
     parser.add_argument("--no-summary", action="store_true",
                         help="요약 통계 파일 생성 비활성화")
@@ -94,6 +101,11 @@ def main():
     error_threshold = args.error_threshold
     min_success_rate = args.min_success_rate
 
+    # 서버 환경 설정
+    if args.env and args.env in config.SERVER_ENVIRONMENTS:
+        config.BASE_URL = config.SERVER_ENVIRONMENTS[args.env]
+        print(f"서버 환경을 '{args.env}'으로 설정합니다: {config.BASE_URL}")
+
     if concurrent_users <= 0:
         print("오류: 동시 사용자 수는 1 이상이어야 합니다.")
         sys.exit(1)
@@ -107,7 +119,7 @@ def main():
     print(f"동시 사용자: {concurrent_users}명")
     print(f"사용자당 API 테스트 세트: {set_count}개")
     print(f"총 테스트 세트 수: {concurrent_users * set_count}개")
-    print(f"서버: {config.BASE_URL}")
+    print(f"서버 환경: {args.env} ({config.BASE_URL})")
     print(f"최대 허용 오류율: {error_threshold}%")
     print(f"최소 필요 성공률: {min_success_rate}%")
     print(f"요약 통계 파일: {'생성' if save_summary else '비활성화'}")
