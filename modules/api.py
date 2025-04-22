@@ -22,7 +22,7 @@ async def call_api(session, url, method, headers=None, payload=None, api_name=No
 
     # 현재 루프에 대한 세마포어가 없으면 생성
     if loop_id not in call_api._semaphores:
-        call_api._semaphores[loop_id] = asyncio.Semaphore(1000)
+        call_api._semaphores[loop_id] = asyncio.Semaphore(config.API_SEMAPHORE_LIMIT)
 
     async with call_api._semaphores[loop_id]:
         start_time = time.time()

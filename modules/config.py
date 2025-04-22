@@ -13,6 +13,9 @@ HTTP_TIMEOUT = 60  # 타임아웃 설정 (초)
 HTTP_MAX_CONNECTIONS = 100  # 최대 동시 연결 수
 HTTP_VERIFY_SSL = False  # SSL 검증 여부
 
+# API 호출 제한 설정
+API_SEMAPHORE_LIMIT = 300  # API 호출에 사용할 세마포어 제한
+
 # 테스트 설정
 SERVER_ALIAS = "SEOUL-001"
 PLATFORM_TYPE = "DEVICE"
