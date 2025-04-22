@@ -10,99 +10,103 @@ from datetime import datetime
 from . import config
 from . import utils
 
+# 모듈 레벨에 세마포어 추가
+api_semaphore = asyncio.Semaphore(300)  # 최대 300개 동시 요청으로 제한
+
 async def call_api(session, url, method, headers=None, payload=None, api_name=None, index=None):
-    """일반적인 API 호출 함수 - HTTP 상태 코드 200을 성공 기준으로 사용"""
-    start_time = time.time()
-    api_name = api_name or url.split('/')[-1]  # URL의 마지막 부분을 API 이름으로 사용
+    async with api_semaphore:
+        """일반적인 API 호출 함수 - HTTP 상태 코드 200을 성공 기준으로 사용"""
+        start_time = time.time()
+        api_name = api_name or url.split('/')[-1]  # URL의 마지막 부분을 API 이름으로 사용
 
-    if method.upper() not in ["GET", "POST", "PUT", "DELETE"]:
-        print(f"지원하지 않는 HTTP 메서드: {method}")
-        return None, False  # 결과와 성공 여부를 함께 반환
+        if method.upper() not in ["GET", "POST", "PUT", "DELETE"]:
+            print(f"지원하지 않는 HTTP 메서드: {method}")
+            return None, False  # 결과와 성공 여부를 함께 반환
 
-    error_msg = None
-    result = None
-    status_code = None
-    elapsed = 0
-    is_success = False  # API 호출 최종 성공 여부
+        error_msg = None
+        result = None
+        status_code = None
+        elapsed = 0
+        is_success = False  # API 호출 최종 성공 여부
 
-    try:
-        if method.upper() == "GET":
-            async with session.get(url, headers=headers) as response:
-                elapsed = time.time() - start_time
-                utils.api_times[api_name].append(elapsed)
-                status_code = response.status
+        try:
+            if method.upper() == "GET":
+                async with session.get(url, headers=headers) as response:
+                    elapsed = time.time() - start_time
+                    utils.api_times[api_name].append(elapsed)
+                    status_code = response.status
 
-                # 성공 기준: HTTP 상태 코드 200
-                is_success = (response.status == 200)
+                    # 성공 기준: HTTP 상태 코드 200
+                    is_success = (response.status == 200)
 
-                try:
-                    result = await response.json()
-                    if is_success:
-                        print(f"[{index}] {api_name} 완료: {elapsed:.2f}초")
-                    else:
-                        print(f"[{index}] {api_name} 실패: HTTP {response.status}")
-                except:
                     try:
-                        result = await response.text()
+                        result = await response.json()
+                        if is_success:
+                            print(f"[{index}] {api_name} 완료: {elapsed:.2f}초")
+                        else:
+                            print(f"[{index}] {api_name} 실패: HTTP {response.status}")
                     except:
-                        result = None
-                    if not is_success:
-                        print(f"[{index}] {api_name} 실패: HTTP {response.status} (응답 처리 오류)")
-        else:  # POST, PUT, DELETE
-            request_kwargs = {"headers": headers}
-            if payload:
-                request_kwargs["json"] = payload
+                        try:
+                            result = await response.text()
+                        except:
+                            result = None
+                        if not is_success:
+                            print(f"[{index}] {api_name} 실패: HTTP {response.status} (응답 처리 오류)")
+            else:  # POST, PUT, DELETE
+                request_kwargs = {"headers": headers}
+                if payload:
+                    request_kwargs["json"] = payload
 
-            request_method = getattr(session, method.lower())
-            async with request_method(url, **request_kwargs) as response:
-                elapsed = time.time() - start_time
-                utils.api_times[api_name].append(elapsed)
-                status_code = response.status
+                request_method = getattr(session, method.lower())
+                async with request_method(url, **request_kwargs) as response:
+                    elapsed = time.time() - start_time
+                    utils.api_times[api_name].append(elapsed)
+                    status_code = response.status
 
-                # 성공 기준: HTTP 상태 코드 200
-                is_success = (response.status == 200)
+                    # 성공 기준: HTTP 상태 코드 200
+                    is_success = (response.status == 200)
 
-                try:
-                    result = await response.json()
-                    if is_success:
-                        print(f"[{index}] {api_name} 완료: {elapsed:.2f}초")
-                    else:
-                        print(f"[{index}] {api_name} 실패: HTTP {response.status}")
-                except:
                     try:
-                        result = await response.text()
+                        result = await response.json()
+                        if is_success:
+                            print(f"[{index}] {api_name} 완료: {elapsed:.2f}초")
+                        else:
+                            print(f"[{index}] {api_name} 실패: HTTP {response.status}")
                     except:
-                        result = None
-                    if not is_success:
-                        print(f"[{index}] {api_name} 실패: HTTP {response.status} (응답 처리 오류)")
+                        try:
+                            result = await response.text()
+                        except:
+                            result = None
+                        if not is_success:
+                            print(f"[{index}] {api_name} 실패: HTTP {response.status} (응답 처리 오류)")
 
-    except Exception as e:
-        elapsed = time.time() - start_time
-        error_msg = str(e)
-        print(f"[{index}] {api_name} 중 오류: {str(e)} ({elapsed:.2f}초)")
-        is_success = False  # 예외 발생 시 항상 실패로 처리
+        except Exception as e:
+            elapsed = time.time() - start_time
+            error_msg = str(e)
+            print(f"[{index}] {api_name} 중 오류: {str(e)} ({elapsed:.2f}초)")
+            is_success = False  # 예외 발생 시 항상 실패로 처리
 
-    # 실패한 경우에만 오류 기록
-    if not is_success:
-        utils.errors.append(f"{api_name}-{index}: {error_msg or f'HTTP {status_code}'}")
+        # 실패한 경우에만 오류 기록
+        if not is_success:
+            utils.errors.append(f"{api_name}-{index}: {error_msg or f'HTTP {status_code}'}")
 
-    # 상세 로그 기록 - 성공 여부에 따라 error 필드를 다르게 설정
-    utils.log_detailed_request(
-        user_id=index,
-        api_name=api_name,
-        url=url,
-        method=method,
-        headers=headers,
-        payload=payload,
-        response=result,
-        status_code=status_code,
-        elapsed_time=elapsed,
-        error=None if is_success else (error_msg or f'HTTP {status_code}'),  # 성공 시 오류 없음
-        is_success=is_success  # 명시적으로 성공 여부 저장
-    )
+        # 상세 로그 기록 - 성공 여부에 따라 error 필드를 다르게 설정
+        utils.log_detailed_request(
+            user_id=index,
+            api_name=api_name,
+            url=url,
+            method=method,
+            headers=headers,
+            payload=payload,
+            response=result,
+            status_code=status_code,
+            elapsed_time=elapsed,
+            error=None if is_success else (error_msg or f'HTTP {status_code}'),  # 성공 시 오류 없음
+            is_success=is_success  # 명시적으로 성공 여부 저장
+        )
 
-    # 결과와 성공 여부를 함께 반환
-    return result, is_success
+        # 결과와 성공 여부를 함께 반환
+        return result, is_success
 
 async def create_token(session, index):
     """토큰 생성 함수"""
