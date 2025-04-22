@@ -195,7 +195,7 @@ def print_statistics(concurrent_users=None, set_count=None):
         print(f"✅ 인증 성공 사용자 비율: {auth_success_rate:.2f}%")
 
 
-def save_results_to_file(concurrent_users, set_count=1, save_summary=True, save_details_json=False):
+def save_results_to_file(concurrent_users, set_count=1, save_summary=True, save_details_json=False, server_env="dev"):
     """테스트 결과를 파일로 저장
 
     Args:
@@ -203,10 +203,14 @@ def save_results_to_file(concurrent_users, set_count=1, save_summary=True, save_
         set_count (int, optional): 사용자당 테스트 세트 수. 기본값은 1.
         save_summary (bool, optional): 요약 통계 파일 저장 여부. 기본값은 True.
         save_details_json (bool, optional): 요청/응답 상세 JSON 로그 파일 저장 여부. 기본값은 False.
+        server_env (str, optional): 테스트한 서버 환경(dev, qa, live). 기본값은 "dev".
     """
     utils.ensure_directory_exists(config.LOG_DIR)
 
     now = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    # 파일명에 서버 환경 추가
+    file_prefix = f"{now}_load_test_{server_env}"
 
     # 총 테스트 세트 및 요청 수 계산
     total_sets = concurrent_users * set_count
@@ -245,7 +249,7 @@ def save_results_to_file(concurrent_users, set_count=1, save_summary=True, save_
 
     # 요약 통계 파일 저장
     if save_summary:
-        summary_filename = os.path.join(config.LOG_DIR, f"{now}_load_test_results_{concurrent_users}users_{set_count}sets.txt")
+        summary_filename = os.path.join(config.LOG_DIR, f"{file_prefix}_results_{concurrent_users}users_{set_count}sets.txt")
 
         with open(summary_filename, "w", encoding="utf-8-sig") as f:
             f.write("=" * 50 + "\n")
@@ -384,7 +388,8 @@ def save_results_to_file(concurrent_users, set_count=1, save_summary=True, save_
 
     # 상세 로그 (JSON 형식) 저장
     if save_details_json:
-        detailed_filename = os.path.join(config.LOG_DIR, f"{now}_load_test_detailed_{concurrent_users}users_{set_count}sets.json")
+        detailed_filename = os.path.join(config.LOG_DIR, f"{file_prefix}_detailed_{concurrent_users}users_{set_count}sets.json")
+
 
         try:
             with open(detailed_filename, "w", encoding="utf-8-sig") as f:

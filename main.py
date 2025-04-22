@@ -74,7 +74,7 @@ def parse_arguments():
     return parser.parse_args()
 
 
-async def main_async(concurrent_users, set_count, save_summary, save_details_json):
+async def main_async(concurrent_users, set_count, save_summary, save_details_json, server_env):
     """비동기 메인 함수"""
     # 테스트 실행
     test_results = await test_runner.run_load_test(concurrent_users, set_count)
@@ -84,7 +84,8 @@ async def main_async(concurrent_users, set_count, save_summary, save_details_jso
         concurrent_users,
         set_count,
         save_summary=save_summary,
-        save_details_json=save_details_json
+        save_details_json=save_details_json,
+        server_env=server_env
     )
 
     return test_results
@@ -100,6 +101,7 @@ def main():
     save_details_json = args.detailed_json
     error_threshold = args.error_threshold
     min_success_rate = args.min_success_rate
+    server_env = args.env
 
     # 서버 환경 설정
     if args.env and args.env in config.SERVER_ENVIRONMENTS:
@@ -129,7 +131,7 @@ def main():
     start_time = time.time()
 
     # 비동기 테스트 실행
-    test_results = asyncio.run(main_async(concurrent_users, set_count, save_summary, save_details_json))
+    test_results = asyncio.run(main_async(concurrent_users, set_count, save_summary, save_details_json, server_env))
 
     # 테스트 종료 및 통계 출력
     total_time = time.time() - start_time
