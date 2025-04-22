@@ -10,13 +10,21 @@ from datetime import datetime
 from . import config
 from . import utils
 
-# 모듈 레벨에 세마포어 추가
-api_semaphore = asyncio.Semaphore(300)  # 최대 300개 동시 요청으로 제한
-
 async def call_api(session, url, method, headers=None, payload=None, api_name=None, index=None):
     """일반적인 API 호출 함수 - HTTP 상태 코드 200을 성공 기준으로 사용"""
-    # 세마포어로 동시 요청 제한
-    async with api_semaphore:
+    # 루프별 세마포어 관리를 위한 딕셔너리 (함수 외부에 선언)
+    if not hasattr(call_api, '_semaphores'):
+        call_api._semaphores = {}
+
+    # 현재 이벤트 루프 가져오기
+    current_loop = asyncio.get_running_loop()
+    loop_id = id(current_loop)
+
+    # 현재 루프에 대한 세마포어가 없으면 생성
+    if loop_id not in call_api._semaphores:
+        call_api._semaphores[loop_id] = asyncio.Semaphore(300)
+
+    async with call_api._semaphores[loop_id]:
         start_time = time.time()
         api_name = api_name or url.split('/')[-1]  # URL의 마지막 부분을 API 이름으로 사용
 
