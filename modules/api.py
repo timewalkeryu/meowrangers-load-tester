@@ -14,8 +14,9 @@ from . import utils
 api_semaphore = asyncio.Semaphore(300)  # 최대 300개 동시 요청으로 제한
 
 async def call_api(session, url, method, headers=None, payload=None, api_name=None, index=None):
+    """일반적인 API 호출 함수 - HTTP 상태 코드 200을 성공 기준으로 사용"""
+    # 세마포어로 동시 요청 제한
     async with api_semaphore:
-        """일반적인 API 호출 함수 - HTTP 상태 코드 200을 성공 기준으로 사용"""
         start_time = time.time()
         api_name = api_name or url.split('/')[-1]  # URL의 마지막 부분을 API 이름으로 사용
 
