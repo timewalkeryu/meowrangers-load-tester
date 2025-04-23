@@ -130,7 +130,8 @@ async def run_api_test_set(session, index, token, set_id):
 
     # 각 테스트 사이에 약간의 지연 추가 (선택 사항)
     # 지연 시간을 줄이려면 이 값을 0.01~0.05 정도로 변경할 수 있습니다
-    await asyncio.sleep(random.uniform(0.01, 0.05))  # 더 짧은 지연으로 변경
+    # await asyncio.sleep(random.uniform(0.01, 0.05))  # 더 짧은 지연으로 변경
+    await asyncio.sleep(random.uniform(0.1, 0.5))
 
     # 세트 종료 시간 기록 및 소요 시간 계산
     set_elapsed_time = time.time() - set_start_time
