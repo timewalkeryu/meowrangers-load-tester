@@ -21,7 +21,7 @@ BASE_URL = SERVER_ENVIRONMENTS.get("dev")
 
 # HTTP 클라이언트 설정
 HTTP_TIMEOUT = 60  # 타임아웃 설정 (초)
-HTTP_MAX_CONNECTIONS = 100  # 최대 동시 연결 수
+HTTP_MAX_CONNECTIONS = 200  # 최대 동시 연결 수
 HTTP_VERIFY_SSL = False  # SSL 검증 여부
 
 # API 호출 제한 설정
