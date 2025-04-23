@@ -25,7 +25,7 @@ HTTP_MAX_CONNECTIONS = 200  # 최대 동시 연결 수
 HTTP_VERIFY_SSL = False  # SSL 검증 여부
 
 # API 호출 제한 설정
-API_SEMAPHORE_LIMIT = 100  # API 호출에 사용할 세마포어 제한
+API_SEMAPHORE_LIMIT = 200  # API 호출에 사용할 세마포어 제한
 
 # 테스트 설정
 SERVER_ALIAS = "SEOUL-001"
